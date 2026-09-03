@@ -1,0 +1,16 @@
+{
+  "run_id": "r1-11-sol-xhigh-p3",
+  "config": {
+    "cli": "codex",
+    "model": "gpt-5.6-sol",
+    "arm": "p3",
+    "reasoning_effort": "xhigh"
+  },
+  "elapsed_sec": 3292.8,
+  "returncode": 0,
+  "win_rate": 0.1111111111111111,
+  "margin_mean": -75409.85648148147,
+  "bank_vs_starter_mean": 70245.83333333333,
+  "audit_hits": 0,
+  "pool_pulled_at": "2026-09-03T03:22:05+00:00"
+}
