@@ -46,6 +46,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_id"); ap.add_argument("--round", default="r1")
     ap.add_argument("--seeds", type=int, default=12)
+    ap.add_argument("--no-score", action="store_true",
+                    help="採点(=エピソード実行)を行わず、回収と静的検査だけ行う")
     args = ap.parse_args()
 
     work = REPO / ".runs" / args.run_id
@@ -60,6 +62,10 @@ def main():
     for extra in work.glob("*.py"):
         if extra.name != "main.py":
             shutil.copy2(extra, dest / extra.name)
+    # code/ は成果物の中核。エージェントの解析・測定スクリプトはここに入る。
+    if (work / "code").is_dir():
+        shutil.copytree(work / "code", dest / "code", dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     for src, dst in ((f"{args.run_id}.jsonl", "transcript.jsonl"),
                      (f"{args.run_id}.meta.json", "meta.json")):
         p = REPO / ".runs" / src
@@ -75,16 +81,21 @@ def main():
     for h in hits[:5]:
         print("   ", h)
 
-    print("== 現在の公開プールに対する採点 ==")
-    subprocess.run([PY, str(REPO / "tools/eval_field.py"), str(dest / "main.py"),
-                    "--seeds", str(args.seeds), "--json", str(dest / "field.json")], check=False)
+    if args.no_score:
+        print("== 採点は保留(--no-score)。エピソードを1本も回していない ==")
+    else:
+        print("== 現在の公開プールに対する採点 ==")
+        subprocess.run([PY, str(REPO / "tools/eval_field.py"), str(dest / "main.py"),
+                        "--seeds", str(args.seeds), "--json", str(dest / "field.json")], check=False)
 
     meta = json.loads((dest / "meta.json").read_text()) if (dest / "meta.json").exists() else {}
-    field = json.loads((dest / "field.json").read_text())
-    sub = next(iter(field["subjects"].values()))
+    sub = {}
+    if (dest / "field.json").exists():
+        sub = next(iter(json.loads((dest / "field.json").read_text())["subjects"].values()))
     summary = {"run_id": args.run_id, "config": meta.get("config"),
                "elapsed_sec": meta.get("elapsed_sec"), "returncode": meta.get("returncode"),
-               "win_rate": sub["win_rate"], "margin_mean": sub["margin_mean"],
+               "win_rate": sub.get("win_rate"), "margin_mean": sub.get("margin_mean"),
+               "scored": bool(sub),
                "bank_vs_starter_mean": sub.get("bank_vs_starter_mean"),
                "audit_hits": len(hits), "pool_pulled_at":
                    json.loads((REPO / "opponents/MANIFEST.json").read_text())["pulled_at"]}

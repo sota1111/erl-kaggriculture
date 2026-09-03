@@ -1,0 +1,264 @@
+{
+  "approach_summary": "STRATEGY FAMILY: rule-based control.  No search, no learning, no opponent model.\nOne stateless file: agent(obs) rebuilds its whole plan from the observation every\nturn, so there is nothing to desynchronise and nothing to carry between episodes.\n\nTHE ECONOMIC IDEA.  Every product's sell price collapses on its own curve, and\neach curve gives out at a different volume.  Computed from the shipped 1.32.7\nprice function (code/m_price.py), dumping into an undrained market returns:\nmelon $21.7k for 100 units and only $26.6k for 300 -- it is finished by ~150;\nstrawberry, milk and wool hit the $1 floor at 52, 76 and 58 units; egg and wheat\nbarely move at all ($38 and $19 marginal after 800 units).  So the ceiling of any\nsingle-product plan is $8k-$32k, and the ~150,000 reference bank is arithmetically\nout of reach for one crop.  THE PLAN IS THEREFORE DELIBERATELY BROAD: run all\nnine lines at once and cap each one where its own curve stops paying.\n\nWHAT ACTUALLY SETS THE CAPS IS THE TOWN, NOT THE CURVE.  The town removes stock\nfor free and never puts any back, so a product being eaten by shops can be sold\nall season at a price that keeps recovering.  Over a season the town takes (mean\nof 200k draws of the with-replacement shop lottery, code/a_town.py) wheat 525,\nstrawberry 426, carrot 328, milk 326, tomato 228, egg 228, wool 228, melon 30 and\nfertilizer 0.  Selling steadily against that drain rather than dumping (the time\npath model in code/a_plan.py) turns the premium goods from traps into the best\nlines on the board: strawberry $160/unit, wool $191, milk $180, melon $188.\nMelon and fertilizer, which the town does not eat, are the only genuinely hard\ncaps: ~150 melons and ~350 fertilizer for the whole season.\n\nTHAT DICTATES THE SELL POLICY.  main.py holds a per-product RESERVE price and\nsells exactly as many units as keep the marginal price above it, recomputing the\nmarginal price from the shipped curve rather than trusting obs[\"market\"][\"prices\"]\n(which quotes the first unit only).  A reserve rule and a drain are the same\nthing seen twice: the reserve automatically paces our sales to whatever the town\nhappens to be eating this season, which matters because the shop draw is only 8\nsamples and the spread is enormous -- season-long wool demand runs from 30 (p10)\nto 498 (p90).  From day 26 the reserve ramps to zero and day 29 liquidates\neverything, because stock in the shed scores nothing.\n\nWHAT TO PRODUCE follows from $/tile-day (code/a_mix.py), which combines the\nprice above with the yield tables: cow with daily CARE $246, sheep $226, melon\n$117, strawberry $69, goose $59 (plus its free fertilizer), wheat $22, tomato\n$13, carrot $9.  But the third column is how many tiles the market will feed:\ncows 8, sheep 8, melon 10, strawberry 26, geese 42.  So the board gets a hard\nper-crop tile cap near those numbers, and inside the caps the choice is made by a\nlive score -- units/tile-day x the MARGINAL price with our own production\npipeline already pushed into the book and the town's observed drain subtracted.\nThat marginal pricing is what makes the agent read the shop list: with three\nyarn stores it buys seven sheep, with none it stops at two, from the same code.\n\nCARE IS THE MOST UNDERPRICED ACTION IN THE GAME.  The bonus banks once per fed\nand cared day and pays out whole on the next scheduled production, so it lifts a\ngoose from 1 to 2 eggs/day, a cow from 0.5 to 1.5 milk/day and a sheep from 0.33\nto 1.33 wool/day -- one action a day roughly triples an animal.  Every animal is\nfed, cared and stripped of its fertilizer daily; fertilizer alone is 1 free unit\nper animal per day and worth ~$25k a season.\n\nLABOUR IS NEARLY FREE AND IS NOT THE CONSTRAINT.  Hire cost is fib(n) reset every\nday (code/a_labor.py): ten hands cost $143 for 253 actions, thirteen cost $609.\nThe n-th hand stops paying when fib(n)/23 passes the $15-30 an action the crop\ntable supports, which is at 13-14 hands.  The agent hires to workload/19 (animal\ntile 4.5 actions/day, planted tile 2.0, empty tile 2.2) capped by that wage curve\nand by cash.  Land is the same story from the other side: a quadrant is 25 tiles\nat $25-100/tile-day, so $1k/$2k/$4k repay in days -- all three are bought as soon\nas the purchase still leaves $1400 to put seed in the ground it just bought.\n\nLABOUR ALLOCATION.  Owned tiles are ordered on a boustrophedon path that starts\nat each quadrant's shed corner and walks outward, then split into contiguous\nslices of equal *static* workload, one per unit.  Static, because weighting the\nsplit by pending work moves the boundaries as the work is done and the units\nchase the boundary instead of the crop.  Within its slice each unit takes the\nhighest (priority - 1.4 x distance) job.  Units respawn at the shed each morning,\nwhich is why the path starts there.\n\nTHE TWO UNRECOVERABLE STATES OUTRANK EVERYTHING.  A plant with\nconsecutive_unwatered >= 1 that is still dry is a weed at midnight; an animal\nwith consecutive_unfed >= 1 is gone.  Those two jobs sit at priority 96 and 99,\nabove harvesting (77), above the shed run (capped at 90), above everything.\nBelow them the ordering is: harvest ripe > water in the yield-bonus window >\nfeed > harvest animal > care > collect fertilizer > build > plant > fertilize >\ndig weeds.  Nothing is planted after hour 19, because a fresh seed starts at\nconsecutive_unwatered = 1 and must be watered the same day.  Feed wheat is bought\nbefore anything discretionary and is never sold out from under the herd.\n\nTHE SHED IS THE THIRD CONSTRAINT.  100 non-seed slots, and a full board makes\nmore than that in a day, so overflow at the end-of-day drop is a real leak.\nUnits carry produce to the shed whenever they hold enough of it, sell orders run\nevery turn, the whole reserve schedule relaxes as the shed fills past 55 items,\nand the morning feed-wheat reserve is released once the hands are carrying their\nrations rather than being held all day.",
+  "derived_from": "From scratch.  No public solution, notebook or opponent code was read, and baseline/moon198 was not present in this worktree.  The only inputs were docs/competition_brief.md, docs/env/RULES.md, docs/env/GETTING_STARTED.md and the shipped kaggle_environments 1.32.7 source (kaggriculture.py), which was read to get the exact turn-processing order, the CARE payout rule, the watering-window arithmetic and the market lockstep.  MARKET_PARAMS, CROPS and ANIMALS are transcribed into main.py so the agent can price its own marginal unit without importing the environment.",
+  "local_eval": {
+    "status": "NOT RUN - episode execution is disabled in this worktree",
+    "why": "tools/engine.play() refuses to run while .no_simulation exists; the Controller stopped simulation because the machine is saturated (load average was ~80 throughout this session).  PROMPT.md forbids working around it, including writing a private episode loop, so no bank number, no win/loss record and no self-play result exists for this agent.",
+    "commands_that_will_produce_it": [
+      ".venv/bin/python tools/eval_local.py main.py --seeds 12",
+      ".venv/bin/python code/m_diag.py main.py    # per-episode diagnostics, see open_questions"
+    ],
+    "observed_error": "engine.SimulationDisabled: このワークツリーではエピソード実行が無効化されている(.no_simulation)",
+    "static_checks_run_instead": {
+      "tools/validate_submission.py main.py": "PASS",
+      "tools/build_submission.sh <clean dir>": "PASS - archive contains main.py at the root.  Running it against this worktree root reports 'main.py not at archive root' even though main.py IS at the root: the script's `tar -tzf ... | grep -qx main.py` check runs under `set -o pipefail`, and grep -q exiting early SIGPIPEs tar, so the pipeline returns 141 whenever the listing is long enough.  Tool bug, not a submission defect; verified by listing the archive by hand.",
+      "code/t_fuzz.py": "8000 synthetic observations covering both seats, all 30 days, all 24 hours, every quadrant-unlock combination, every tile kind at every age and care state, 0-14 hands, empty/full sheds and market inventories from deep scarcity to total glut, plus 6 degenerate observations (missing keys, player index out of range, all-locked board, None private).  No exception, action shape legal every time, market list never over 10, hands list always matches the hand count.",
+      "code/t_scenes.py": "27 hand-built single-turn scenarios asserting the designed behaviour: opening buys land and hires; a plant that would weed tonight is watered before anything else; an animal that would escape tonight is fed, and if the unit has no wheat it fetches some, and if the shed has none it buys some; wheat is watered before harvest so the same-turn bonus lands; melon is not dumped at the floor but everything is liquidated on day 29; the herd's feed is never sold; three yarn stores buy sheep and none does not; an animal in the shed gets a courier; a coop we still want stocked is not dug up; nothing is planted after hour 19; both seats work.  All pass.",
+      "determinism": [
+        "Identical output for 300 identical observations across PYTHONHASHSEED=1/12345/777 (sha256 of the concatenated actions matches).  The agent keeps no state between turns and iterates lists, not sets, so a replay of the same episode replays the same actions."
+      ],
+      "line_coverage": "97% of main.py statements (581/598) executed by the fuzz + scenes; the remainder are unreachable defensive branches (unused price shape functions, the global exception handler, the empty-board fallback)."
+    },
+    "honest_reading": "None of this measures strength.  It measures that the agent is not broken and that it does what the design says.  The bank number, and whether the labour schedule really keeps 100 tiles watered in play, are unmeasured - see open_questions."
+  },
+  "timing": {
+    "limit": "1 s per turn (actTimeout), 720 turns per episode",
+    "worst_turn_observed": "29.4 ms",
+    "mean_turn": "0.7 - 2.5 ms depending on machine load",
+    "season_total_projection": "0.5 - 1.8 s for all 720 turns",
+    "heaviest_realistic_turn": "1.4 - 3.6 ms on a hand-built worst case: all 100 tiles owned and carrying work, 33 animals, 14 hands, full shed, glutted market.",
+    "measurement": "code/t_fuzz.py, 8000 synthetic observations plus 200 repeats of the worst-case observation, after a 50-call warmup.  Wall time was taken around the agent() call only.  This is NOT an episode measurement: no episode could be run.  The spread comes from machine load - the box carried a load average of ~68-80 for the whole session, so these numbers are pessimistic rather than optimistic.",
+    "headroom": "~34x under the limit at the worst observation seen under load ~80.  The work per turn is O(tiles x units) = 100 x 15 with a bounded sell-quantity search, so there is no input that makes it grow: no search, no time-budget guard needed, and none is present."
+  },
+  "failure_modes": [
+    {
+      "failure": "KeyError: 'seed' in _crop_ranking - seed cost was read from the wrong table",
+      "found_by": "code/t_fuzz.py; it raised on 3481 of 4000 observations",
+      "consequence_if_shipped": "the global try/except would have caught it and returned PASS on every turn of every episode.  The agent would have scored 3000 and looked merely weak rather than broken - which is exactly why the fuzz asserts on the un-wrapped _decide as well as on agent().",
+      "fix": "read the seed cost from CROPS"
+    },
+    {
+      "failure": "animals bought into the shed were never picked up",
+      "found_by": "code/t_scenes.py - a goose in the shed with an empty coop produced a move, not a PICKUP",
+      "consequence_if_shipped": "every animal bought would sit in storage all season; $300-500 each, silently",
+      "fix": "courier task: when the shed holds an animal and a matching empty structure exists, the nearest unit is sent to PICKUP it; the PLACE task on the structure requires the animal in inventory, so the two chain without any stored state"
+    },
+    {
+      "failure": "empty coops we were about to stock were dug up",
+      "found_by": "code/t_scenes.py",
+      "consequence_if_shipped": "build/dig oscillation burning one action per animal per turn",
+      "fix": "the dig guard now tests demand for that structure type BEFORE the free structures are subtracted from it"
+    },
+    {
+      "failure": "speculative coops built across crop land while broke",
+      "found_by": "code/t_scenes.py - a farmer with $0 and no animals chose BUILD_COOP",
+      "consequence_if_shipped": "crop rotation replaced by empty pens",
+      "fix": "_animal_wanted now requires money >= cost + 200, and only an animal already paid for and homeless may claim a tile outside the reserved NE quadrant; a merely planned one may not"
+    },
+    {
+      "failure": "runaway animal buying",
+      "found_by": "code/t_scenes.py - three sheep were bought per turn regardless of the wool market, because animals sitting in the shed did not count towards the production pipeline that prices the next one",
+      "consequence_if_shipped": "the whole bank spent on a herd whose product is at the $1 floor",
+      "fix": "shed and carried animals count in pipeline(); and _animal_room prices each additional animal one at a time over its whole remaining working life instead of pricing the batch at the first unit's price"
+    },
+    {
+      "failure": "the shed run out-ranked the two unrecoverable states",
+      "found_by": "code review - the drop priority scaled with inventory and was capped at 118, above 96/99",
+      "consequence_if_shipped": "a unit carrying 30 items would walk past a dying plant",
+      "fix": "drop priority capped at 90, except during day-29 liquidation"
+    },
+    {
+      "failure": "unit regions oscillated between turns",
+      "found_by": "code review - the workload split was weighted by PENDING work, which shrinks as the work is done",
+      "consequence_if_shipped": "units drift across moving boundaries instead of finishing a slice",
+      "fix": "the split is weighted by what each tile IS, not by what is still pending"
+    },
+    {
+      "failure": "wheat purchases for the herd could be blocked by a full shed",
+      "found_by": "code review of _commit_unit: BUY_PRODUCT fails outright when the shed is at capacity, and an unfed animal is unrecoverable",
+      "consequence_if_shipped": "the whole herd starves on the day the shed happens to be full",
+      "fix": "the two largest sell orders are queued ahead of the wheat purchase so they free slots first, the purchase sizes itself against the projected post-sale shed, the reserve schedule relaxes as the shed passes 55 items, and the morning feed reserve is released once the hands carry their rations"
+    },
+    {
+      "failure": "exceptions and malformed actions in general",
+      "found_by": "by construction",
+      "fix": "agent() wraps everything and returns {'farmer': ['PASS'], 'hands': [], 'market': []} on any exception; the return is also normalised - farmer coerced to a non-empty list, hands and market coerced to lists, market truncated to 10 so ordering is ours and not the engine's silent drop.  Every observation field is read with a default, so a missing market, town, private or hands key degrades instead of raising."
+    }
+  ],
+  "rejected_hypotheses": [
+    {
+      "hypothesis": "Specialise: find the highest-value product and fill the board with it.",
+      "rejected_by": "computation over the shipped price curve, code/m_price.py.  Melon, the best crop per tile-day, returns $21.7k for 100 units and $26.6k for 300 - the curve is over by ~150 units.  Strawberry, milk and wool floor at 52/76/58 units.  No single line clears $32k, so no specialist reaches the ~150k reference.",
+      "status": "rejected analytically; not tested in an episode"
+    },
+    {
+      "hypothesis": "Avoid the premium goods (strawberry, melon, milk, wool): above_target > 1 means even a modest glut drives them to $1.",
+      "rejected_by": "code/a_town.py + code/a_plan.py.  The town eats 426 strawberry, 326 milk and 228 wool a season and never sells any back, so sold at the drain rate their inventory keeps FALLING and the price sits above base: $160, $180, $191 per unit against bases of $120, $160, $200.  They are the best lines on the board, not the worst - provided you sell at a reserve price rather than dumping.",
+      "status": "rejected analytically"
+    },
+    {
+      "hypothesis": "Sell each harvest as soon as it lands; cash now beats cash later.",
+      "rejected_by": "the time-path model in code/a_plan.py.  Dumping prices the whole batch on one point of the curve; selling against the town's daily drain re-prices it every day.  For carrot the difference is $13.7 vs ~$27 a unit, for melon $175 vs $217.",
+      "status": "rejected analytically"
+    },
+    {
+      "hypothesis": "Wheat is the money crop: cheapest seed, best return on capital, glut-proof.",
+      "rejected_by": "code/a_mix.py.  Wheat is glut-proof but it is $22/tile-day, the bottom of the table, ~1/10th of a cared-for cow.  Its real job is animal feed: 1 wheat per animal per day, bought or grown.",
+      "status": "rejected analytically; wheat kept as the fill crop and the feed input"
+    },
+    {
+      "hypothesis": "Hire sparingly - fib(n) explodes.",
+      "rejected_by": "code/a_labor.py.  fib resets every day, so 10 hands cost $143 for 253 actions and 13 cost $609.  The explosion only bites at the 15th hand ($27/action).  Wages at full build are under 4% of what the market model says the board produces.",
+      "status": "rejected analytically; the cap is set at 13-15 by the wage curve, not by cash"
+    },
+    {
+      "hypothesis": "Skip the $4000 SE quadrant; it never pays back.",
+      "rejected_by": "25 tiles at the $22-246/tile-day of code/a_mix.py repay $4000 in 2-8 days.  The binding question is not whether but when: the agent requires $1400 left over after the purchase so it can actually stock the land, and stops buying land after day 23.",
+      "status": "rejected analytically"
+    },
+    {
+      "hypothesis": "Take the empty market: produce what the opponent is not producing and monopolise it.",
+      "rejected_by": "code/a_plan.py --rival 1.0.  With a second seller matching our rate, the price-sensitive lines halve (melon 171 -> 85 units, milk 261 -> 129, wool 227 -> 112, carrot $13.7 -> $4.0 a unit) while egg and wheat barely move.  A plan that depends on being alone in a market loses most of its value against a strong opponent; a broad plan capped per line loses least.  This is the model, not a self-play measurement - see open_questions.",
+      "status": "rejected analytically; the coupling number itself is UNMEASURED"
+    },
+    {
+      "hypothesis": "Spend fertilizer on crops rather than selling it.",
+      "rejected_by": "partially rejected both ways.  Fertilizer sells for ~$25k a season but the curve is done by ~350 units, while ~34 animals produce ~800.  So: sell to the reserve ($35, about 325 units) and spend the surplus, in the order strawberry (+4 units per 3 applications) > tomato (+4 per 2) > melon (2 tile-days and 2 waterings saved) > wheat (+2) > carrot (+1).",
+      "status": "resolved analytically into a priority order, not a yes/no"
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "Does the labour schedule actually keep every tile watered and every animal fed?",
+      "why_it_matters": "This is the single largest risk in the design.  Weeds and escapes are unrecoverable, and code/a_labor.py says a fully planted 100-tile board with 34 animals needs ~300 actions/day, which is 14-15 units - right at the wage ceiling.  If the arithmetic is optimistic about movement, plants will be watered every other day and lose their bonus yield, or worse.",
+      "how_to_settle_it": ".venv/bin/python code/m_diag.py main.py - it counts plants lost to weeds and animals lost to starvation per episode.  Both must be 0 for the design to hold.  If they are not, the fix is to cap live plants at units*20/1.6 in _empty_tile_tasks rather than to hire more."
+    },
+    {
+      "question": "How much produce is discarded at the 100-slot shed cap?",
+      "why_it_matters": "A full board makes ~120-160 items/day against 100 slots.  The counter-measures (per-turn selling, the reserve relaxing past 55 items, mid-day drops) are untested.",
+      "how_to_settle_it": "code/m_diag.py reports the shed peak; a peak pinned at 100 means the leak is real.  Instrumenting _drop_inventories_to_shed in a local copy of the env would give the discarded count exactly."
+    },
+    {
+      "question": "Are the RESERVE prices right once a second seller is in the book?",
+      "why_it_matters": "The reserves were set from a solo time-path model.  Against an opponent selling the same goods, holding out for $130 melon may mean holding until the melon is worth $1.",
+      "how_to_settle_it": "code/m_diag.py prints the realised $/unit per product for both vs-starter and self-play; compare against `code/a_plan.py --rival 1.0`.  If the premium goods come in far under model in self-play, the reserves are too high, not too low: lower MELON/MILK/WOOL/STRAWBERRY first, they are the ones whose curves are steep enough to punish waiting."
+    },
+    {
+      "question": "Is the crop mix right, or is it just the model's mix?",
+      "why_it_matters": "CROP_SHARE and ANIMAL_PLAN caps come from code/a_mix.py, which is the crop table times the price model.  Real episodes will differ because setup days, movement and the shop draw all bite.",
+      "how_to_settle_it": "sweep CROP_SHARE and ANIMAL_PLAN over eval_local with 12 seeds x both seats; they are two dicts at the top of main.py and nothing else reads them.  The mix is the cheapest thing in the agent to tune once episodes are cheap again."
+    },
+    {
+      "question": "Is 13-15 hands actually the right ceiling?",
+      "why_it_matters": "The 15th hand costs $610/day; the model says it is worth ~$27/action.",
+      "how_to_settle_it": "vary the caps in _hire_target and read the bank.  code/m_diag.py also reports the fraction of actions spent moving, which is the number that decides it: if movement is over ~45%, the region split is wasting the hands and buying more of them will not help."
+    },
+    {
+      "question": "Is it ever right to push carrot / tomato / egg past their hinge knee?",
+      "why_it_matters": "code/a_mix.py: the town alone drains past T in 52.9% of seasons for tomato, 26.0% for carrot, 22.3% for egg, and past the knee the price runs away (tomato $84 at I0-T, $300 at I0-2T).  Getting there means deliberately NOT selling the crop the town is starving for - and, for wheat and fertilizer, BUY_PRODUCT to drain it further.  The current agent only leaves the option open via its reserve prices; it never actively corners a resource.",
+      "how_to_settle_it": "add a mode that stops selling tomato entirely once unlocked_shops holds 2+ tomato consumers, and compare banks.  This is the largest unexplored idea in the design."
+    },
+    {
+      "question": "Does the opening leave money on the table?",
+      "why_it_matters": "Days 0-4 are the only period where cash, not land or market depth, is the constraint.  The current opening (hire 3-6, buy NE, plant melon/strawberry then wheat/carrot) is a guess ordered by the same score function as the rest of the season.",
+      "how_to_settle_it": "compare bank at day 6 across variants with a fixed seed; the engine is deterministic given the seed, so day-6 bank is a clean signal that does not need the whole episode."
+    }
+  ],
+  "measurements_this_is_built_on": {
+    "note": "Every number quoted above is computed, not played.  The price and town figures come from evaluating the shipped kaggle_environments 1.32.7 market_price / MARKET_PARAMS / SHOPS tables directly; they are exact for the function, and are NOT observations of an episode.  No episode was run at any point.",
+    "scripts": {
+      "code/m_price.py": "price(I0 +/- x) and cumulative dump revenue R(N) per product",
+      "code/a_town.py": "season-long town drain distribution over 200k draws of the with-replacement shop lottery",
+      "code/a_plan.py": "day-by-day price path: optimal steady sale rate, revenue and $/unit per product, with --rival to add a second seller",
+      "code/a_mix.py": "$/tile-day per crop and per animal, tiles the market will feed, and how often the town alone crosses the carrot/tomato/egg hinge",
+      "code/a_labor.py": "hire cost curve, $/action of the n-th hand, staffing per phase",
+      "code/t_fuzz.py": "contract fuzz + timing (static, no episode)",
+      "code/t_scenes.py": "behavioural scenarios (static, no episode)",
+      "code/m_diag.py": "NEEDS EPISODES - the per-episode diagnostics listed in open_questions",
+      "code/m_town.py": "NEEDS EPISODES - pre-existing PASS-vs-PASS town drain probe"
+    },
+    "key_numbers": {
+      "dump_revenue_R100_R300": {
+        "MELON": [
+          21721,
+          26627
+        ],
+        "FERTILIZER": [
+          9010,
+          21030
+        ],
+        "EGG": [
+          4371,
+          12559
+        ],
+        "WHEAT": [
+          2193,
+          6313
+        ],
+        "STRAWBERRY": [
+          3847,
+          4047
+        ],
+        "MILK": [
+          6205,
+          6405
+        ],
+        "WOOL": [
+          7969,
+          8169
+        ],
+        "CARROT": [
+          2738,
+          6510
+        ],
+        "TOMATO": [
+          4318,
+          9207
+        ]
+      },
+      "town_drain_season_mean": {
+        "WHEAT": 525,
+        "STRAWBERRY": 426,
+        "CARROT": 328,
+        "MILK": 326,
+        "TOMATO": 228,
+        "EGG": 228,
+        "WOOL": 228,
+        "MELON": 30,
+        "FERTILIZER": 0
+      },
+      "town_drain_p10_p90_wool": [
+        30,
+        498
+      ],
+      "dollars_per_tile_day": {
+        "COW": 246,
+        "SHEEP": 226,
+        "MELON": 117,
+        "STRAWBERRY": 69,
+        "GOOSE": 59,
+        "WHEAT": 22,
+        "TOMATO": 13,
+        "CARROT": 9
+      },
+      "tiles_the_market_feeds": {
+        "COW": 8,
+        "SHEEP": 8,
+        "MELON": 10,
+        "STRAWBERRY": 26,
+        "GOOSE": 42,
+        "WHEAT": 62
+      },
+      "hinge_crossed_by_town_alone": {
+        "TOMATO": "52.9%",
+        "CARROT": "26.0%",
+        "EGG": "22.3%"
+      },
+      "hire_cost_cumulative_per_day": {
+        "10 hands": 143,
+        "13 hands": 609,
+        "15 hands": 1596
+      }
+    }
+  }
+}
