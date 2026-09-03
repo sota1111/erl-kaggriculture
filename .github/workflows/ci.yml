@@ -1,0 +1,28 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # The submission contract and the archive layout are the two things a broken
+      # agent branch silently gets wrong, so check both on every push.
+      - run: python tools/validate_submission.py baseline/moon198/main.py
+      - run: bash tools/build_submission.sh baseline/moon198
+      - name: baseline still beats the built-in starter
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from kaggle_environments import make
+          spec = importlib.util.spec_from_file_location("m", "baseline/moon198/main.py")
+          mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+          env = make("kaggriculture", configuration={"seed": 42}, debug=False)
+          env.run([mod.agent, "starter"])
+          me, opp = (s.reward for s in env.steps[-1])
+          print(f"moon198={me} starter={opp}")
+          assert me > opp, "baseline regressed against the built-in starter"
+          PY

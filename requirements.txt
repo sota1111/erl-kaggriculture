@@ -1,0 +1,4 @@
+# The arena runs kaggle-environments; pin it so local episodes and the real
+# arena stay the same game. docs/env/ is vendored from this exact version.
+kaggle-environments==1.32.7
+kaggle>=1.6
