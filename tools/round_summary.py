@@ -39,6 +39,29 @@ def main():
         pct = f"{(r['bank'] or 0) / REFERENCE_BANK * 100:.0f}%"
         lines.append(f"| `{r['run']}` | {r['model']} | {r['effort']} | {r['arm'].upper()} | "
                      f"{r['sec']:.0f}s | {r['bank']:,.0f} | {pct} | {r['margin']:,.0f} | {r['audit']} |")
+    # 2つのローカル指標が順位で食い違うなら、どちらも「強さ」を測れていない可能性がある。
+    by_bank = [r["run"] for r in sorted(rows, key=lambda r: -(r["bank"] or 0))]
+    by_margin = [r["run"] for r in sorted(rows, key=lambda r: -(r["margin"] or -9e18))]
+    if by_bank != by_margin:
+        lines += ["", "> **注意: 2つのローカル指標が順位で食い違っている。**",
+                  f"> bank 順 {' > '.join(by_bank)}",
+                  f"> マージン順 {' > '.join(by_margin)}",
+                  "> どちらが実LBの順位を保存するかは未検証であり、"
+                  "現時点でローカル順位を昇格判定に使ってはならない。"]
+
+    # アーム内のばらつきとアーム間の差を並べる。前者が後者と同程度なら、差は語れない。
+    arms = {}
+    for r in rows:
+        arms.setdefault((r["effort"], r["arm"]), []).append(r["bank"] or 0)
+    spreads = {k: (max(v) - min(v)) for k, v in arms.items() if len(v) > 1}
+    if spreads and len(arms) > 1:
+        means = {k: sum(v) / len(v) for k, v in arms.items()}
+        gap = max(means.values()) - min(means.values())
+        worst = max(spreads.values())
+        lines += ["", f"> **アーム内のばらつき(bank)最大 {worst:,.0f} 対 アーム間の差 {gap:,.0f}。**"
+                      + ("ばらつきが差と同程度以上であり、**軸の効果を語ってはならない。**"
+                         if worst >= gap * 0.5 else "")]
+
     out = "\n".join(lines)
     print(out)
     print(f"\n基準線 = starter 戦 bank {REFERENCE_BANK:,}(現在の公開フィールドで戦えている水準)")
