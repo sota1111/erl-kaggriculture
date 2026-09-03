@@ -11,6 +11,6 @@
   "win_rate": 0.1111111111111111,
   "margin_mean": -115401.17592592593,
   "bank_vs_starter_mean": 22840.333333333332,
-  "audit_hits": 2,
+  "audit_hits": 0,
   "pool_pulled_at": "2026-09-03T03:22:05+00:00"
 }
