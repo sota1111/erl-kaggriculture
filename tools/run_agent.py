@@ -90,7 +90,10 @@ def build_worktree(run_id: str, arm: str, resume: bool = False, no_sim: bool = F
     venv = Path(os.environ.get("KAGGRICULTURE_VENV", "/home/vscode/.venvs/kaggriculture"))
     if not (venv / "bin" / "python").exists():
         raise SystemExit(f"runtime venv missing: {venv} (see tools/README.md)")
-    (work / ".venv").symlink_to(venv)
+    link = work / ".venv"
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    link.symlink_to(venv)
     leaked = [p for p in work.rglob("*") if not p.is_symlink() and ".venv" not in p.parts
               and p.is_file() and any(s in p.parts for s in ("opponents", "baseline", "results"))]
     if leaked:
