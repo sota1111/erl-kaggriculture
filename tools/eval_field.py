@@ -69,6 +69,7 @@ def main():
 
     wins = {s: 0 for s in subjects}; games = {s: 0 for s in subjects}
     margins = {s: [] for s in subjects}; crash = {s: 0 for s in subjects}
+    per_opp: dict[str, dict[str, list]] = {s: {} for s in subjects}
     starter_bank = []
     for a, b, seed, ba, bb in rows:
         if b == "builtin::starter":
@@ -78,6 +79,7 @@ def main():
                 continue
             games[me] += 1; wins[me] += mine > theirs; margins[me].append(mine - theirs)
             crash[me] += mine <= 0
+            per_opp[me].setdefault(Path(opp).name, []).append(mine - theirs)
 
     out = {"seeds": seeds, "pool": [p.name for p in opps], "subjects": {}}
     for s in sorted(subjects, key=lambda s: -(wins[s] / max(games[s], 1))):
@@ -88,10 +90,24 @@ def main():
                "zero_bank_games": crash[s]}
         if starter_bank and s == subjects[0] and not args.round_robin:
             rec["bank_vs_starter_mean"] = statistics.mean(starter_bank)
+        rec["per_opponent"] = {o: {"wins": sum(1 for m in ms if m > 0), "games": len(ms),
+                                   "margin_mean": statistics.mean(ms)}
+                               for o, ms in sorted(per_opp[s].items())}
         out["subjects"][Path(s).name] = rec
         print(f"  {Path(s).name[:46]:46s} win {wr*100:5.1f}%  "
               f"margin {rec['margin_mean']:+10.0f}  min {rec['margin_min']:+10.0f}  "
               f"games {games[s]}" + (f"  zero-bank {crash[s]}" if crash[s] else ""))
+        if len(subjects) == 1:
+            for o, d in rec["per_opponent"].items():
+                print(f"      vs {o[:44]:44s} {d['wins']:>2}/{d['games']}  "
+                      f"margin {d['margin_mean']:+10.0f}")
+    if len(subjects) == 1:
+        po = out["subjects"][Path(subjects[0]).name]["per_opponent"]
+        decided = sum(1 for d in po.values() if d["wins"] in (0, d["games"]))
+        if decided == len(po):
+            print("\n  RESOLUTION WARNING: every opponent is a clean sweep either way, so the\n"
+                  "  win rate is a step function here and cannot rank candidates. Rank on\n"
+                  "  margin_mean until the candidate starts splitting games with the pool.")
     if starter_bank and not args.round_robin:
         print(f"\n  crash check: mean bank vs starter = {statistics.mean(starter_bank):,.0f} "
               f"({sum(1 for b in starter_bank if b<=0)}/{len(starter_bank)} zero-bank)")

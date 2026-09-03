@@ -1,0 +1,14 @@
+{
+  "command": ".venv/bin/python tools/eval_local.py main.py --seeds 12 --workers 12",
+  "seeds": 12,
+  "both_seats": true,
+  "starter": {"bank_mean": 14571, "bank_min": 9179, "wins": 24, "games": 24},
+  "random": {"bank_mean": 14330, "bank_min": 3820, "wins": 24, "games": 24},
+  "self_play": {"bank_mean": 4420, "bank_min": 288, "wins": 12, "games": 24},
+  "zero_bank_games": 0,
+  "exceptions": 0,
+  "timeouts": 0,
+  "completion": "all games DONE",
+  "breakage_check": "PASS",
+  "interpretation": "破綻検査のみ。ローカル所持金から実LBでの昇格・順位は主張しない。"
+}

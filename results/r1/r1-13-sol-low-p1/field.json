@@ -28,55 +28,55 @@
     "main.py": {
       "win_rate": 0.1111111111111111,
       "games": 216,
-      "margin_mean": -1100.0324074074074,
-      "margin_min": -46844.0,
+      "margin_mean": -120702.67129629629,
+      "margin_min": -189145.0,
       "zero_bank_games": 0,
-      "bank_vs_starter_mean": 149808.0,
+      "bank_vs_starter_mean": 15233.5,
       "per_opponent": {
         "177_180_fresh_top_30_v21_1_conditional_memory.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -9584.625
+          "margin_mean": -121993.375
         },
         "25_27_strict_future_v27_midgame_meta_reset.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -19185.291666666668
+          "margin_mean": -140233.625
         },
         "40_40_early_floor_39_46_top_10_v48_fast_routes.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -17642.125
+          "margin_mean": -142056.66666666666
         },
         "kaggriculture_findings_from_zero_to_top_meta.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -17264.333333333332
+          "margin_mean": -131911.16666666666
         },
         "kaggriculture_multi_route_farming_agent.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -19849.541666666668
+          "margin_mean": -146668.16666666666
         },
         "kaggriculture_structured_economic_policy.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -35530.833333333336
+          "margin_mean": -130489.41666666667
         },
         "kaggriculture_visualized_what_every_crop_pays.py": {
           "wins": 24,
           "games": 24,
-          "margin_mean": 151150.29166666666
+          "margin_mean": 7209.75
         },
         "v16_rc2_high_score_near_mirror_market_relay.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -21901.0
+          "margin_mean": -140332.58333333334
         },
         "v16_rc5_high_score_8c_4s_premium_market_lead.py": {
           "wins": 0,
           "games": 24,
-          "margin_mean": -20092.833333333332
+          "margin_mean": -139848.79166666666
         }
       }
     }
