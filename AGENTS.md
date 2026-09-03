@@ -3,24 +3,27 @@
 あなたはこのリポジトリの **1 ブランチを担当する研究エージェント**である。
 自分のブランチの中で完結して作業し、`main` へは書き込まない。
 
+あなたのワークツリーには**渡されたものだけ**が入っている。`opponents/`(採点材料)、
+`baseline/`(公開解由来の個体)、他個体の成果物は**意図的に渡していない。**
+無いファイルを探す必要はないし、取りに行ってもいけない。
+
 ## 1. 最初に読むもの(この順)
 
-1. `docs/competition_brief.md` — **コンペ正本。**スコアの正体・メダルライン・提出契約・既知の罠
-2. `docs/env/GETTING_STARTED.md` — 公式チュートリアル(observation / action の全仕様)
-3. `docs/env/RULES.md` — 公式ルール(作物表・価格関数・町の需要・ターン処理順)
-4. `docs/round<N>_plan.md` — 自分がどの config かを確認する
+1. `PROMPT.md` — あなたの課題
+2. `docs/competition_brief.md` — **コンペ正本。**スコアの正体・メダルライン・提出契約・既知の罠
+3. `docs/env/GETTING_STARTED.md` — 公式チュートリアル(observation / action の全仕様)
+4. `docs/env/RULES.md` — 公式ルール(作物表・価格関数・町の需要・ターン処理順)
 
 ## 2. やること
 
-`agent(obs)` を export する `main.py` を実装し、以下を自分のブランチに残す。
+`agent(obs)` を export する `main.py` を実装し、**ワークツリー直下に**以下を残す。
+Controller がこれを回収して `results/r<N>/<your-agent-id>/` へ置き、ブランチに残す。
 
 ```
-results/r<N>/<your-agent-id>/
-├── main.py                 # 提出物本体(archive root に置かれる)
-├── <helper>.py             # 必要なら。archive に同梱される
-├── agent_submission.json   # 下表の必須キー
-├── local_eval.json         # tools/eval_league.py の出力(破綻チェック用、昇格判定用ではない)
-└── code/                   # 学習スクリプト・解析ノート等、main.py 以外の一式
+main.py                  # 提出物本体(archive root に置かれる)
+<helper>.py              # 必要なら。archive に同梱される
+agent_submission.json    # 下表の必須キー
+code/                    # 解析スクリプト等、main.py 以外の一式(任意)
 ```
 
 `agent_submission.json` に必ず含めるもの:
@@ -29,7 +32,7 @@ results/r<N>/<your-agent-id>/
 | --- | --- |
 | `approach_summary` | **戦略の族**(固定ポリシー / ルールベース制御 / 探索 / 学習ベース / 混合)、経済の回し方(何を作り何を売るか)、労働力配分、土地解放の判断、依拠した経済的洞察。次ラウンドの手法クラスタ分類はこの記述だけで行われる |
 | `derived_from` | `baseline/moon198` からの派生か、白紙からか。派生なら**何を変えたか**を機序で書く |
-| `local_eval` | starter / baseline に対する所持金と、破綻チェックの結果 |
+| `local_eval` | `tools/eval_local.py` の出力(所持金と破綻チェック) |
 | `failure_modes` | 例外・タイムアウト・no-op で落ちた条件と、どう潰したか |
 | `timing` | 1ターンの最悪実行時間(制限 1 秒)と 720 ターンの累計 |
 | `rejected_hypotheses` | 試して捨てた方針と理由 |
@@ -38,10 +41,11 @@ results/r<N>/<your-agent-id>/
 
 - **スコアはレーティングであって所持金ではない。** 提出直後は必ず 600.0 から始まる。
   **提出直後の値を見て「効かなかった」と結論してはならない**(`docs/competition_brief.md` §1)。
-- **ローカル評価で昇格を主張してはならない。** `tools/eval_league.py` は
-  **実 LB の順序を反転させることが実証済み**(同 §5.1)。ローカルは
-  「例外を投げる / タイムアウトする / starter に負ける」の**足切りだけ**に使う。
-  それ以上の主張をした報告は棄却される。
+- **ローカル評価で昇格を主張してはならない。** `tools/eval_local.py` が使える相手は
+  組み込みエージェントと自分自身だけで、**実力の識別力がない**(実力の異なる6体が
+  所持金では 10% 以内に密集することを実測済み)。ローカルは「例外を投げる /
+  タイムアウトする / starter に負ける / bank 0 で終わる」の**足切りだけ**に使う。
+  本当の採点は Controller が非公開の相手フィールドに対して行う。
 - **1ターン 1 秒。** 720 ターン回して最悪ターンの実測を報告すること。
   探索を積むなら、必ず時間予算のガードを自分で書くこと。
 - **例外を投げない。** 不正アクションは黙って no-op になるが、例外は評価を落とす。
@@ -53,14 +57,15 @@ results/r<N>/<your-agent-id>/
   リカバリ不能なので、そもそも起こさない設計にすること。
 - **外部ネットワークに出ない。** 重みは archive に同梱する。
 - **Kaggle への提出はあなたの仕事ではない。** Controller が 5回/日の枠を管理して行う。
-- 他のエージェントのブランチを読まない。
+- **Python は `.venv/bin/python` を使う**(`kagsim` と `kaggle_environments` が入っている)。
+- 他のエージェントの成果物を探さない。ワークツリーの外に出ない。
 - **`pkill` / `pgrep -f` でパターン一致による一括 kill をしない。** 自分を起動している
   CLI プロセスまで巻き込む(NEDO ラウンド1 で 2時間45分ぶんの実行が消えた)。
   後片付けは自分が起動したジョブの PID を控えてそれだけを kill すること。
 
 ## 4. 終了条件
 
-- `python tools/validate_submission.py <your>/main.py` が PASS。
-- `bash tools/build_submission.sh results/r<N>/<your-agent-id>` が通る。
+- `.venv/bin/python tools/validate_submission.py main.py` が PASS。
+- `bash tools/build_submission.sh .` が通る。
 - 12 seed × 両席で**一度も例外・タイムアウトを出さず**、全て `DONE` で完走する。
 - `agent_submission.json` の必須キーが埋まっている。
