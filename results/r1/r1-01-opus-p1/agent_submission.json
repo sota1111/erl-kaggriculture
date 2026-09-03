@@ -1,0 +1,186 @@
+{
+  "agent_id": "r1-01-opus-p1",
+  "approach_summary": {
+    "strategy_family": "Rule-based control. Deterministic, stateless, no search, no learned weights, no RNG. Three layers recomputed from the observation every turn: (1) survey my farm, the opponent's farm, the market book and the town; (2) turn every worthwhile unit-action into a scored task pinned to a tile; (3) greedily match farmer + hands to tasks by score minus walking distance, then emit a price-aware market queue. Being stateless is deliberate: a reload mid-episode, or a second episode in the same process, cannot corrupt it.",
+    "economy": "The town is the demand floor and it is not uniform across products. Over a season the shops plus the town centre consume, in expectation, wheat 525, strawberry 426, carrot 327, milk 327, egg 228, tomato 228, wool 228, melon 30, fertilizer 0 (main.py::town_drain computes this exactly from obs['town']['unlocked_shops'] plus the remaining scheduled unlocks, rather than assuming). Selling at or under that rate keeps a price at or above base; selling past it is where the premium goods with above_target > 1 (strawberry, melon, milk, wool) fall to the $1 floor. So the plan is to saturate each niche and stop. Every planting and every livestock purchase is priced against the book it will actually face: price_at(current_inventory + 0.5 * (line_volume - town_drain)), where line_volume is everything that crop or animal line will deliver for the rest of the season. As a line grows, its own projected volume pushes its projected price down and the agent rotates to the next niche. EGG is the designated dump: base $50 with a log glut side (amp 1.72), so 2,000 eggs only walk the price from $50 to about $37 - it is the one product that absorbs scale, so geese are what surplus tiles become once milk, wool, melon and strawberry are saturated.",
+    "labour": "Hiring costs fib(n) per hand per day and resets nightly: 12 hands cost $376/day, 15 cost $1,596, 20 cost $17,710. MAX_HANDS = 12 sits just before that knee. Hand count is re-derived at hours 0-2 of each day from the actual workload (animals x 3.4 + plants x 1.2 + plantable empties x 1.8, times 1.9 to cover walking, over 24 turns per unit), so the payroll tracks the farm instead of a fixed schedule. Allocation is a greedy max-value matching: value = task score - 2.4 x Manhattan distance, computed with a lazy best-per-unit pass over the strongest 160 tasks. Task scores encode the loss ordering the rules impose: fetching feed for an at-risk animal (138) > feeding it (130) > watering a plant that would otherwise weed tonight (128/120) > animal tile already at max_held (96) > placing livestock (92) > watering for yield (84) > harvest (66-88) > planting (78) > normal feeding (72) > CARE (62) > collecting fertilizer (40) > clearing weeds (16-30) > prophylactic watering (14, so spare hands top up plants that are not yet at risk).",
+    "land": "Land is bought only when it will be worked: money - feed_floor >= price + 450, utilisation of currently unlocked tiles >= 55%, and >= 7 days left. Buying NE drops utilisation below the gate until the new ground is planted, which self-throttles the next purchase. Animals sit on the tiles nearest the shed (they absorb up to four actions - FEED, CARE, HARVEST, COLLECT_FERTILIZER - per walk, and their feed comes out of the shed); crops take the outer ring.",
+    "economic_insights_relied_on": [
+      "Animals beat crops per unit-action, because four actions land on one tile per walk while a crop tile usually absorbs one WATER per walk. CARE doubles animal output for one action per day and is the single best marginal action in the game.",
+      "...but every animal eats 1 WHEAT/day, so a herd is only as large as the wheat field behind it. Wheat's scarcity side is sqrt with amp 1.0, so buying 1,500 units of feed drives it to about $60. When the herd out-eats the field, wheat carries a planting bonus that decays to exactly zero as the deficit closes.",
+      "Plants survive on alternate-day watering (consecutive_unwatered resets on any watered day), which halves the watering bill; the bonus window is watered on top of that. Fresh plantings have no grace period (consecutive_unwatered starts at 1), so a seed planted and not watered the same day is a weed by morning.",
+      "Fertilizer is free from livestock (1/animal/day, straight into the collecting unit's inventory, no shed trip) and is worth wildly different amounts by crop: strawberry +4 units (~$480 per 2 applications), tomato +4, wheat +2, carrot +1, and melon exactly zero - water alone already reaches melon's cap of 6 by age 8 while first_yield_day is 10, so melon is never fertilized.",
+      "Selling costs no unit-actions, only market-queue slots, so sales are paced in small parcels (SELL_CAP per product per turn) to let town consumption refill the scarcity gap between them, rather than dumped in one order.",
+      "Unsold goods score zero and day 29 never reaches an end-of-day refresh, so nothing in a unit's hands ever reaches the shed by itself. From hour 15 every unit with inventory walks it in; from hour 16 the book is dumped regardless of price.",
+      "The opponent's farm is public. Their standing crops and animals feed the volume projection directly, and on top of that the agent assumes they mirror OPP_MIRROR = 0.6 of its own line, so a niche only looks good while it still looks good under company. This is the single largest untested constant - see open_questions."
+    ]
+  },
+  "derived_from": "From scratch. No baseline, no public solution, no derived code. The only external inputs are docs/env/RULES.md, docs/env/GETTING_STARTED.md, docs/competition_brief.md and the shipped kaggle_environments 1.32.7 source (kaggriculture.py), which was read to pin down turn order, the exact end-of-day production/care/feed sequence, the atomic-PLANT validation rule and the price curves. The constant tables in main.py are transcribed from that source; nothing is imported from it at runtime.",
+  "local_eval": {
+    "status": "NOT RUN - episodes are disabled in this worktree (.no_simulation; tools/engine.py::play raises SimulationDisabled). No bank number, no win/loss and no break-even check exists for this agent, and none is claimed.",
+    "command_for_controller": ".venv/bin/python tools/eval_local.py main.py --seeds 12",
+    "reference_line_to_beat": "bank mean ~150,000 vs starter over seeds 1..12 x both seats (tools/eval_local.py REFERENCE_BANK).",
+    "what_was_verified_instead": [
+      ".venv/bin/python tools/validate_submission.py main.py -> PASS",
+      "code/fuzz_obs.py: 40,000 synthetic observations (both seats, all 30 days x 24 hours, every quadrant combination, weeds, decaying plants, escaped animals, empty/full sheds, and deliberately mangled observations with market/town/private/farms removed) -> action contract holds on every one, no exception raised.",
+      "code/test_invariants.py: 8 targeted scenarios covering the unrecoverable losses -> all pass.",
+      "code/timing_worst.py: 4,320 turns on the densest board the engine can present.",
+      "The archive builds and main.py sits at the archive root (verified directly; see failure_modes.tooling)."
+    ],
+    "self_play_check": "NOT RUN. Self-play is the only local test that shows whether the market-sharing logic survives a rival that competes for the same niches, and it is exactly what could not be run here. code/sweep.py scores every configuration against starter AND in self-play for this reason."
+  },
+  "failure_modes": {
+    "note": "Found by reading the engine source and by the static harnesses in code/, not by episodes. Each was reproduced as a hand-built observation before the fix and is now covered by a regression check.",
+    "fixed": [
+      {
+        "failure": "Herd starves with wheat sitting in the shed.",
+        "condition": "Animals at consecutive_unfed >= 1 while the field also has many plants one day from weeding. FEED requires WHEAT in the acting unit's inventory; critical watering scored 120-128 and the shed pickup scored 70, so every unit walked off to water, no unit ever carried feed, and the FEED tasks stayed infeasible for the whole day. Two such days in a row and the animals are gone permanently.",
+        "fix": "When any animal is at risk the wheat pickup is scored 138, above both critical watering (128) and the FEED itself (130), so a feed run is launched first. Covered by code/test_invariants.py cases [1] and [8], which assert a feed run is launched at every hour of the day."
+      },
+      {
+        "failure": "Feed wheat ping-pong.",
+        "condition": "A unit picks up 24 wheat to feed the herd; the shed-drop rule counted total inventory against a threshold of 16, so the unit immediately turned around and dropped the wheat back, then picked it up again, forever.",
+        "fix": "The drop threshold now ignores working stock - up to 24 WHEAT, 8 FERTILIZER and 3 unplaced animals - and counts only produce. On the final day the exclusion is dropped so everything is walked in and sold."
+      },
+      {
+        "failure": "All PLANT orders for a crop silently dropped.",
+        "condition": "The engine drops every PLANT request for a crop when the turn's requests exceed seeds held (kaggriculture.py interpreter, `blocked`). Two hands ordered to plant the last wheat seed lose both actions, not one.",
+        "fix": "Plant tasks are only generated against seeds actually on hand, and a second guard trims the emitted action list before returning. Covered by code/test_invariants.py case [6]."
+      },
+      {
+        "failure": "Fertilizer burned outside the bonus window.",
+        "condition": "The first draft fertilized as soon as the window was within 2 days. FERTILIZE covers day..day+2, so applying it at wheat age 0 covers ages 0,1,2 of which only age 2 pays - final yield 5 instead of 6.",
+        "fix": "One-time crops are fertilized only inside `window_start <= age <= max_yield_day`."
+      },
+      {
+        "failure": "Discretionary spending consumed the feed budget.",
+        "condition": "Seeds, land and livestock could take the bank to zero while animals still needed wheat that the field was not yet producing, which is unrecoverable.",
+        "fix": "A feed_floor of 3 days of feed at the current wheat price (capped at $2,600) is withheld from every land, livestock and seed purchase, and the emergency BUY_PRODUCT WHEAT runs ahead of them in the queue."
+      },
+      {
+        "failure": "Turn budget.",
+        "condition": "The first assignment pass was O(units^2 x tasks) over every task, 151 ms on a saturated board.",
+        "fix": "Prune to the strongest 160 tasks, then a lazy best-per-unit greedy that only recomputes units whose pick was just taken. 44.9 ms worst observed, 6x faster."
+      },
+      {
+        "failure": "Unplaced livestock hid itself from the saturation check.",
+        "condition": "The purchase rule counted placed animals only, so several could be bought in consecutive turns all priced as if the herd were still empty, while sitting in the shed eating capacity and producing nothing.",
+        "fix": "Shed and carried stock count toward the herd for pricing, and no purchase is made while 3 or more animals are unplaced."
+      },
+      {
+        "failure": "Watering a plant that can never yield again.",
+        "condition": "An ongoing crop that has fired all its scheduled productions sets max_lifespan_step and only decays from there; it was still being watered daily.",
+        "fix": "Spent ongoing plants are excluded from survival watering and queued for DIG once harvested."
+      }
+    ],
+    "guards_against_the_unfixable": [
+      "Whole agent wrapped in try/except returning {\"farmer\": [\"PASS\"], \"hands\": [], \"market\": []}.",
+      "Every observation field read through a helper that tolerates dict or Struct, missing keys and None; boards smaller than 4x4 (the validator stub) return a legal quiet action.",
+      "The market queue is truncated to 10 orders and duplicate BUY_SEED lines for one crop are merged, so nothing is silently discarded by the per-turn cap.",
+      "Hand action list length always equals len(farm['hands']); asserted on 40,000 fuzz observations and on both seats across all 30 days."
+    ],
+    "tooling": {
+      "issue": "`bash tools/build_submission.sh .` exits 1 with 'main.py not at archive root' even though main.py IS at the archive root.",
+      "cause": "Pre-existing bug in the shared script, independent of this agent. Under `set -euo pipefail`, `tar -tzf \"$out\" | grep -qx 'main.py'` makes grep exit on the match, tar takes SIGPIPE, and the pipeline returns 141. It fires for any agent directory that has entries sorting after main.py. Reproduced directly: `bash -c \"set -euo pipefail; tar -tzf submission.tar.gz | grep -qx 'main.py'\"` -> exit 141.",
+      "verification_done_instead": "tar -tzf submission.tar.gz > list; grep -qx 'main.py' list -> matches. The archive is well formed and main.py is at the root.",
+      "suggested_one_line_fix": "Replace the check with `tar -tzf \"$out\" > \"$out.lst\"; grep -qx 'main.py' \"$out.lst\"` (or append `|| true` to the tar side). tools/ was left unmodified on purpose - it is shared infrastructure.",
+      "also_note": "The script bundles every file in the agent directory, so running it here would sweep docs/, tools/, PROMPT.md and the dangling .venv symlink into the archive. Only main.py is needed."
+    }
+  },
+  "timing": {
+    "limit": "1.000 s per turn (actTimeout), 720 turns per episode.",
+    "worst_turn_measured": "50.0 ms",
+    "worst_turn_conditions": "code/timing_worst.py: all 100 tiles unlocked and occupied, every plant one day from weeding or every animal hungry, 12 hands (the hire cap), shed and seed stores full, run over all 30 days x 24 hours x both seats (4,320 turns). Across five repeated runs the worst turn ranged 10.5-50.0 ms; the spread is machine noise (this host is saturated with other work), not input-dependent blow-up.",
+    "mean_turn_on_that_board": "1.1-5.3 ms depending on run",
+    "mean_turn_over_40000_random_observations": "1.2-2.1 ms, worst 28.3 ms",
+    "margin": "about 20x under the limit on the worst turn ever observed",
+    "cumulative_720_turns": "1.7-3.8 s projected from the dense-board mean (720 x 2.3-5.3 ms). Upper bound if every one of the 720 turns were the worst turn ever seen: 36 s. NOT measured on a real episode - episodes are disabled here, so no true end-to-end wall clock exists for this agent.",
+    "hardware": "dev container, .venv CPython 3.12.3. Kaggle hardware may be slower; the 22x margin is sized for that.",
+    "algorithmic_bound": "There is no search and no time-budget guard, because there is nothing to budget: the turn is O(tiles + tasks x units) with tasks pruned to 160 and units capped at 13. Cost cannot grow with game length.",
+    "margin_note": "The dense board is far harsher than any real one: it has every tile occupied and every tile simultaneously demanding attention, which a real farm never reaches."
+  },
+  "rejected_hypotheses": [
+    {
+      "hypothesis": "Buy wheat feed from the market instead of growing it, and spend the freed tiles on more livestock.",
+      "basis": "ARITHMETIC on the price curve in RULES.md, not measured.",
+      "reason": "Wheat's scarcity side is sqrt with below_target 0.80 and T=400, giving amp exactly 1.0, so price = 25 + sqrt(deficit). A 45-animal herd eats about 1,200 units over the season, and with the town already drawing 525 the deficit reaches ~1,700 and the price ~$66, averaging near $50. A tile of fertilized wheat yields 1.2 units/day and feeds 1.2 geese producing 2.4 eggs at ~$39, i.e. $43/tile-day for the grown-feed pair against $31/tile-day for a goose on bought feed. Growing wins, and it does not hand the same price spike to the opponent. Buying survives only as the emergency path when the field is short."
+    },
+    {
+      "hypothesis": "Hire hands to the point where labour stops binding (18-20 units).",
+      "basis": "ARITHMETIC on the fib hire cost, not measured.",
+      "reason": "Cumulative daily cost is 143 at 10 hands, 376 at 12, 1,596 at 15 and 17,710 at 20. A hand is worth roughly 24 turns x $15-30 = $360-720/day, so the 15th hand is already marginal and the 20th costs more per day than the entire rest of the payroll earns. MAX_HANDS = 12."
+    },
+    {
+      "hypothesis": "Fertilize melon.",
+      "basis": "DERIVATION from the yield rule, not measured.",
+      "reason": "Melon's bonus window opens at age 6 and watering alone adds 1/day, reaching the cap of 6 at age 10 - which is exactly first_yield_day, the earliest a harvest is legal. Fertilizer gets there at age 8 and then waits. The yield at harvest is 6 either way, so a fertilizer worth $60-100 and an action buy nothing. FERT_VALUE['MELON'] is negative, which removes the task entirely."
+    },
+    {
+      "hypothesis": "Water every plant every day.",
+      "basis": "DERIVATION from the refresh rule, not measured.",
+      "reason": "consecutive_unwatered resets to 0 on any watered day and only kills at 2, so alternate-day watering keeps a plant alive for half the actions. On a 45-plant field that is ~22 actions/day saved, close to a full hand. Daily watering is kept only where it pays yield (the bonus window, and fertilized production days for ongoing crops), plus a low-priority prophylactic top-up from hour 12 so idle hands still buy insurance against a missed day."
+    },
+    {
+      "hypothesis": "CARE and FEED every animal right through the last day.",
+      "basis": "DERIVATION from the end-of-day sequence in kaggriculture.py, not measured.",
+      "reason": "The care bonus is banked at end-of-day and paid at the NEXT scheduled production, and day 29 never reaches an end-of-day refresh at all. So CARE from day 28 pays into a production that is never harvested, and FEED on day 29 is pure waste. Both are cut off (CARE <= day 27, FEED <= day 28) and the actions go to harvesting and liquidation instead."
+    },
+    {
+      "hypothesis": "Concentrate on the single highest-value crop per tile-day.",
+      "basis": "ARITHMETIC on the price curves, not measured.",
+      "reason": "Melon scores ~150/tile-day at zero tiles - about three times its nearest rival - but no shop demands melon, so the town removes only 30 units all season, and above_target 3.60 on a sq curve puts the price at $25 by 150 units sold and at the floor by 160. Any static allocation to the best-looking crop destroys its own price. The scorer therefore re-ranks after every tile it allocates, which caps melon near 9 tiles and rotates to strawberry, then carrot."
+    },
+    {
+      "hypothesis": "Hold produce for a better price.",
+      "basis": "DERIVATION from shedCapacity, not measured.",
+      "reason": "The shed holds 100 non-seed items total, overflow at the end-of-day drop is discarded, and a mature farm produces 150-200 items/day. There is nowhere to hold anything, and stockpiling on unit inventories does not bypass the cap. Price discipline is therefore expressed as pacing (a per-product per-turn parcel size) plus a soft floor that trickles rather than dumps, with the floor overridden once the shed passes 74 items."
+    },
+    {
+      "hypothesis": "Dump each product in a single large SELL order.",
+      "basis": "DERIVATION from the market loop, not measured.",
+      "reason": "Orders are filled one unit at a time against a book that moves as they fill, and the town consumes on a 4-turn tick between our turns. Spreading the same volume over turns lets that consumption refill the scarcity gap, so the same quantity clears at a strictly better average price. One order per product per turn, sized by SELL_CAP."
+    }
+  ],
+  "open_questions": [
+    {
+      "question": "OPP_MIRROR = 0.6 - how much rival volume should be assumed when pricing our own production?",
+      "why_it_matters": "This is the largest untested constant in the agent. It sets how early the agent abandons a niche. At 0.0 it saturates melon to ~14 tiles and strawberry to ~50; at 0.6 it stops at ~9 and ~25. Too low and a rival's parallel production takes both of us to the $1 floor; too high and we leave scarcity rent on the table against a passive field.",
+      "how_to_decide": ".venv/bin/python code/sweep.py --grid rival --seeds 12. Sweeps 0.0/0.3/0.6/0.9 and reports mean bank vs starter AND in self-play. Read the self-play column first: starter never competes for a niche, so only self-play shows whether the assumption survives a rival. Expect the starter column to prefer a low value and the self-play column a higher one; take the value that does not lose much on either."
+    },
+    {
+      "question": "Is the melon-led opening right, or should the first quadrant be carrot/wheat for cash velocity?",
+      "why_it_matters": "Melon scores ~113/tile-day at day 0 after the cash discount but pays nothing until day 10, while land ($1k/$2k/$4k) and livestock both compound from the moment they are bought. The cash_rate() discount (13%/day under $700, down to 1%/day over $12k) is a guess at that trade-off and was never calibrated.",
+      "how_to_decide": "Run code/trace_episode.py --seed <s> and read the per-day bank and tile census columns. If NE is still locked past day 5, or the bank sits near zero through days 2-8, the opening is too slow and cash_rate should rise. Then sweep the rates directly (add them to GRIDS in code/sweep.py) against both starter and self-play."
+    },
+    {
+      "question": "Is the land gate (utilisation >= 55%, cash - feed_floor >= price + 450, >= 7 days left) buying quadrants too late?",
+      "why_it_matters": "25 tiles for 20 days at even $30/tile-day is $15k against a $4,000 SE quadrant, so late land is very likely underbought - but land bought before there are hands to work it is dead capital, and buying it drops utilisation and stalls the next purchase.",
+      "how_to_decide": "code/trace_episode.py prints the day each quadrant unlocks (watch the 'locked' count in the tile census) alongside the bank. Compare the unlock day against the day the bank first clears each price. If the gap is more than 2-3 days the gate is the binding constraint, not cash; loosen utilisation toward 0.40."
+    },
+    {
+      "question": "Does the labour model actually keep 13 units busy, and is DIST_WEIGHT = 2.4 the right walking penalty?",
+      "why_it_matters": "Every unit respawns at the shed each morning, so the first turns of every day are pure walking. If MOVE dominates the action split the layout or the distance weight is wrong; if PASS appears we are paying for hands with nothing to do.",
+      "how_to_decide": "code/trace_episode.py prints the action split per day. Target: MOVE below ~45% of unit-actions and PASS near zero. Then .venv/bin/python code/sweep.py --grid labour --seeds 12 over MAX_HANDS x DIST_WEIGHT."
+    },
+    {
+      "question": "Are the SELL_CAP parcel sizes paced correctly?",
+      "why_it_matters": "Pacing is provably better than dumping against town consumption alone, but not against a rival who dumps first: whoever sells into a scarce book gets the rent. The right parcel size is a race condition that only shows up in self-play.",
+      "how_to_decide": ".venv/bin/python code/sweep.py --grid selling --seeds 12 (scales every cap by 0.5/1/2/4). The starter column should be flat - starter barely trades - and the self-play column should show the race. Take the self-play answer."
+    },
+    {
+      "question": "Do the harvest-timing choices for one-time crops hold up?",
+      "why_it_matters": "Wheat is harvested at age 4 for 6 units (1.5/day fertilized), but age 3 gives 5 units in 3 days (1.67/day) at a higher action and fertilizer rate per unit. Carrot at age 2 gives 3 units in 2 days (1.5/day) against 4 in 3 (1.33/day). Whether the faster cycle wins depends on whether tiles or actions are the binding constraint, which is exactly what could not be measured.",
+      "how_to_decide": "Change HARVEST_AGE and the matching YIELD_FERT/YIELD_PLAIN entries in main.py (a 2-line change per crop), then run tools/eval_local.py on each variant. If the action split from trace_episode.py shows units idle, take the slower/cheaper cycle; if it shows tiles empty and units saturated, take the faster one."
+    },
+    {
+      "question": "MAX_ANIMALS = 46 with an animal zone reserved at n_structs + 8 tiles.",
+      "why_it_matters": "46 animals eat 46 wheat/day, which needs ~31 fertilized wheat tiles; together that is 77 of 100 tiles, leaving little for the high-margin premium crops. The split between herd and field was reasoned, never measured.",
+      "how_to_decide": ".venv/bin/python code/sweep.py --grid opening --seeds 12 sweeps MAX_ANIMALS over 30/38/46. Cross-check with the tile census in trace_episode.py: if wheat occupies more than about a third of the farm the herd is too big for the field."
+    },
+    {
+      "question": "Does the agent hold up on both seats and across seeds without a single exception or timeout?",
+      "why_it_matters": "This is an exit condition (12 seeds x both seats, all DONE) and it is the one thing static testing genuinely cannot substitute for. 40,000 hand-built observations passed the contract, but they are hand-built.",
+      "how_to_decide": ".venv/bin/python tools/eval_local.py main.py --seeds 12. Any ZERO-BANK seed, any status other than DONE, or a per-turn figure near 1 s is a hard fail regardless of the bank number."
+    }
+  ]
+}
