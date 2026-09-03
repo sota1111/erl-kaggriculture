@@ -81,7 +81,15 @@ def command(cfg: dict, work: Path) -> list[str]:
                 "-c", f'model_reasoning_effort="{cfg.get("reasoning_effort", "xhigh")}"',
                 "-s", "danger-full-access", "-C", str(work), one_line]
     if cfg["cli"] == "claude":
+        # 既定の claude CLI はこのマシンの MCP 設定を継承する。素で起動した r1-01 / r1-03 は
+        # WebSearch・WebFetch に加え **ユーザーの Gmail と Google Calendar のツール** を
+        # 与えられていた(送信・削除を含む)。--dangerously-skip-permissions と組み合わせると
+        # 承認なしで実行できる。実害は出なかった(両者とも Bash しか使わなかった)が、
+        # 隔離の前提が崩れていた:WebFetch/WebSearch があれば公開解を直接取得できる。
+        # --restricted で設定ファイルと MCP を無視し、--tools で許可制にする。
         return ["claude", "-p", one_line, "--output-format", "stream-json", "--verbose",
+                "--strict-mcp-config",
+                "--tools", "Bash", "Read", "Write", "Edit", "Glob", "Grep",
                 "--dangerously-skip-permissions", "--model", cfg["model"], "--max-turns", "1000"]
     raise SystemExit(f"unknown cli {cfg['cli']!r}")
 
