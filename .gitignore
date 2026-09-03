@@ -4,3 +4,4 @@ __pycache__/
 .env
 submission.tar.gz
 replays/
+opponents/__pycache__/
