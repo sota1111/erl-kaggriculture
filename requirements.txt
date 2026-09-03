@@ -1,4 +1,10 @@
-# The arena runs kaggle-environments; pin it so local episodes and the real
+# The arena runs kaggle-environments 1.32.7; pin it so local episodes and the real
 # arena stay the same game. docs/env/ is vendored from this exact version.
 kaggle-environments==1.32.7
 kaggle>=1.6
+
+# Bit-exact C++ engine for 1.32.7 (nikital7's port, patched and packaged by
+# destbreso). ~19x faster than kaggle-environments for live Python agents, far more
+# for fixed action streams. tools/engine.py self-checks it every process and falls
+# back to kaggle-environments rather than trusting a simulator that has drifted.
+kagsim @ git+https://github.com/destbreso/kaggriculture-cppsim@main

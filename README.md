@@ -12,15 +12,18 @@
 > エージェント成果物がすべて失われた。コミットされていた docs だけが残った。
 > 以後、**成果物は必ずリポジトリに残す。**
 
-## いま知っておくべき3つのこと
+## いま知っておくべき4つのこと
 
-1. **LB スコアは所持金ではなくレーティング。** 新規提出は必ず **600.0 から始まり**、
-   対戦を重ねて収束する。**提出直後の値で候補を評価してはならない。**
-2. **LB はチームの最高スコアではなく、現在アクティブな提出を表示する。**
-   2026-08-03 に 2543.4(現盤面で 165位=銀圏)を出した moon-198 を放置して
-   弱い個体を出し続けたため、順位は 3,251 位まで落ちていた。**良い個体は置いておく。**
-3. **ローカル評価は実 LB の順序を反転させることが実証済み。**
-   昇格判定は実 LB のレーティングでのみ行う(`docs/competition_brief.md` §5.1)。
+1. **過去の記録は根拠に使わない。** このコンペのフィールドは3週間で入れ替わる。
+   8月のレーティングも、8月に抽出した相手プールに対する勝率も、現在の判断には使えない。
+   相手プールは `tools/refresh_opponents.py` で**毎ラウンド引き直す。**
+2. **LB スコアは所持金ではなくレーティングで、エピソード単位で動く。** 新規提出は 600.0
+   から始まる。ラダーの供給速度はエージェントによって10倍違うので、**時間ではなく
+   消化エピソード数で判定する**(`tools/rating_probe.py`)。**「収束値」は存在しない。**
+3. **LB はチームの最高スコアではなく、現在対戦中の提出を表示する。**
+   5回/日 出せても対戦に回るのは直近のものだけで、弱い個体で上書きすると良い個体が降りる。
+4. **ローカルは `kagsim` で 19倍速く回る**(bit-exact 検証済み)。1候補 216戦が約70秒。
+   **ローカル試行は事実上無制限、有限なのは実 LB だけ。**
 
 ## ブランチ運用
 
@@ -38,8 +41,8 @@
 | [`docs/decision_2026-09-03.md`](docs/decision_2026-09-03.md) | 参戦判断(kaggriculture 対 biohub)の実測記録 |
 | `docs/env/` | 公式ルールのベンダリング(`kaggle-environments` 1.32.7、Apache-2.0) |
 | [`AGENTS.md`](AGENTS.md) | エージェントへの契約 |
-| `baseline/moon198/` | **実 LB 2543.4 実証済みの基準個体**(公開カーネル蒸留、出自は正本 §7) |
-| `opponents/` | 公開上位5体の相手プール + `MANIFEST.json`(出自・sha256) |
+| `baseline/moon198/` | 基準個体(公開カーネル蒸留、**ERL の成果ではない**)。現在 実LB 920.6 / プール勝率 11.1% |
+| `opponents/` | **現在の**公開カーネルから作った相手プール + `MANIFEST.json`(取得日時・出自・sha256・作者の現LB) |
 | `tools/` | 評価基盤([`tools/README.md`](tools/README.md)) |
 | `results/lb/` | LB スナップショット(メダルラインの推移) |
 | `results/baseline/` | 基準個体のローカル測定 |
@@ -52,11 +55,14 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env    # KAGGLE_USERNAME / KAGGLE_API_TOKEN を記入
 
-# 基準個体が動くことの確認(約2秒)
-python tools/eval.py baseline/moon198/main.py opponents/soil_remembers_rain.py 42
+# 相手プールを現在の公開カーネルから作り直す
+python tools/refresh_opponents.py --top 16
+
+# 基準個体を現在のプールで採点(216戦 ≈ 70秒)
+python tools/eval_field.py baseline/moon198/main.py --seeds 12
 
 # いまのメダルラインを引き直す
-python tools/lb_snapshot.py --score 2543.4 --team "$KAGGLE_USERNAME"
+python tools/lb_snapshot.py --team "$KAGGLE_USERNAME"
 ```
 
 ## 提出(Controller のみ)

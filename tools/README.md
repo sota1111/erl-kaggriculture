@@ -1,46 +1,64 @@
 # 評価基盤
 
 ```bash
-pip install -r ../requirements.txt   # kaggle-environments==1.32.7 にピン
+python -m venv .venv && . .venv/bin/activate
+pip install -r ../requirements.txt      # kaggle-environments 1.32.7 + kagsim(C++エンジン)
 ```
 
-| ツール | 用途 | 信頼度 |
-| --- | --- | --- |
-| `validate_submission.py <main.py>` | 提出契約(`agent(obs)` と戻り値の3キー)の機械チェック | **信頼できる** |
-| `build_submission.sh <agent-dir>` | `submission.tar.gz` を作り sha256 を記録 | **信頼できる** |
-| `lb_snapshot.py` | 実 LB を取得しメダルラインと自分の位置を算出 | **信頼できる**(実測) |
-| `eval.py <cand> <opp> [seeds]` | 候補 対 相手1体 の総当たり(所持金差) | **足切りのみ** |
-| `eval_league.py [cand]` | 公開上位5体のプールに対する field win-rate、両席・held-out seed | **昇格判定に使ってはならない** |
-| `extract_opponents.py` | 公開カーネルから相手エージェントを抽出し `MANIFEST.json` を更新 | — |
-
-## eval_league.py を昇格判定に使ってはならない理由
-
-`kaggriculture-claude` SOT-2383 / SOT-2417 の記録:
-
-- self-mirror オラクルでは soil が moon-198 に **20/20 で勝った**。
-  実 LB では **moon-198 = 2543.4、soil = 600(床)**。
-- 公開上位5体で組んだ replay-league でも順序は**反転**した
-  (moon-198 の field win-rate 27.5%)。較正は **`CALIBRATED = False`** で終わっている。
-
-**ローカルで測れるのは「壊れていないこと」までである。**強さの順序は実 LB でしか測れない。
+| ツール | 用途 |
+| --- | --- |
+| `engine.py` | エピソード実行のバックエンド。**毎プロセスで kagsim を自己検査**し、失敗したら `kaggle_environments` に落ちる |
+| `validate_submission.py` | 提出契約(`agent(obs)` と戻り値の3キー)の機械チェック |
+| `build_submission.sh` | `submission.tar.gz` を作り sha256 を記録 |
+| `refresh_opponents.py` | **現在の**公開カーネルから相手プールを作り直す(陳腐化するので毎ラウンド実行) |
+| `eval_field.py` | 候補をプール全体と両席・多seedで対戦させ勝率とマージンを出す |
+| `lb_snapshot.py` | 実 LB を取得しメダルラインと自分の位置を算出 |
+| `rating_probe.py` | 提出の (スコア, エピソード) を採取。**時間ではなくエピソードで収束を判定する** |
 
 ## 使い方
 
 ```bash
-# 契約チェック → archive 生成(sha256 を記録)
-python tools/validate_submission.py results/r1/<id>/main.py
-bash   tools/build_submission.sh   results/r1/<id>
+# ラウンド開始時に必ず: 相手プールを引き直す(前回のプールは古い)
+python tools/refresh_opponents.py --top 16
 
-# 破綻チェック(1エピソード約2秒)
-python tools/eval.py results/r1/<id>/main.py opponents/soil_remembers_rain.py 7,42,101,202
-python tools/eval_league.py results/r1/<id>/main.py --seeds all --json results/r1/<id>/local_eval.json
+# 候補の採点(216戦 ≈ 70秒、kagsim + 24並列)
+python tools/eval_field.py results/r1/<id>/main.py --seeds 12 --json results/r1/<id>/field.json
 
-# 決定性の確認(タイムアウト・乱数由来の再現不能を検出)
-python tools/eval_league.py results/r1/<id>/main.py --check-determinism
+# プール自身の総当たり(ローカル順位が作者の現LBと合うかの較正材料)
+python tools/eval_field.py --round-robin --seeds 12 --json results/baseline/pool_round_robin.json
+
+# 提出の測定(定期的に叩いて系列を伸ばす)
+python tools/rating_probe.py --append results/baseline/rating_convergence.md
 
 # メダルラインを引き直す
-python tools/lb_snapshot.py --score <converged-rating>
+python tools/lb_snapshot.py --score <その時点のスコア>
 ```
 
-seed 分割は SOT-2383 との継続性のため固定: SCREEN `[101, 202]` /
-CONFIRM `[7, 42, 303, 404, 505, 777, 1234, 2026, 5555, 9001]`。**両席で走る。**
+## 測れること・測れないこと(2026-09-03 実測)
+
+| 指標 | 識別力 |
+| --- | --- |
+| 組み込み `starter` に対する所持金 | **ほぼ無い。**実力の異なる6体が 10% 以内、うち4体は 0.2% 以内に密集する |
+| **現在の公開プールに対する両席・多seed勝率** | **有効。**`baseline/moon198` は 11.1% で、実LB 900前後(下位半分)と整合 |
+| 実 LB レーティング | 唯一の真値。ただし動き続けるので「収束値」は存在しない |
+
+**ローカル順位が実LB順位を保存するかは未確認。**ラウンド1 で n=16 の Spearman を取って
+初めて答えが出る(`docs/round1_plan.md` §4.2)。それまでローカル順位は仮の順位である。
+
+## エンジンの検証(2026-09-03、本リポジトリで実施)
+
+- 同梱トレース5本すべてで C++ コアが 719 ステップ完全一致
+- Python バインディングのゴールデンテスト PASS
+- 自前エージェントでの照合: `moon198 vs starter` seed 42 →
+  kagsim (133032.0, 3532.0) = kaggle_environments (133032.0, 3532.0)
+- 速度 **19倍**(0.36秒 対 7.0秒)
+- **アリーナのリプレイ JSON から設定を抽出して照合済み**——env `0.1.0`、全項目がローカル既定値と一致
+
+**速いシミュレータが黙って本物とずれるのは、遅いより悪い。**`engine.py` は毎回自己検査する。
+
+## 安全上の注意
+
+**他人のノートブックからエージェントを取り出す処理は、必ずサンドボックス
+(別プロセス + 一時ディレクトリ)で実行する。**`refresh_opponents.py` は
+`_sandbox_extract.py` 経由でそうしている。この規約は、抽出処理がリポジトリ直下へ
+他人の `main.py`(70KB)を書き出す事故を起こしてから追加された。

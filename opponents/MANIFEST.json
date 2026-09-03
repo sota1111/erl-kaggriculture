@@ -1,47 +1,97 @@
-[
-  {
-    "file": "moon_counts_melons.py",
-    "kernel_ref": "prvsiyan/kaggriculture-frontier-the-moon-counts-melons",
-    "extraction": "agent_source",
-    "sha256": "692c5aa95e65023324cb8ca028e428ee7546fe17ee09e270a1f935914fae472f",
-    "lines": 449,
-    "loads": true,
-    "note": "episode 89674601 distillation (updated 449-line public version)"
-  },
-  {
-    "file": "soil_remembers_rain.py",
-    "kernel_ref": "prvsiyan/kaggriculture-frontier-the-soil-remembers-rain",
-    "extraction": "agent_source",
-    "sha256": "00e8ab594a39779e808dd351d0973260f4c90ddc1370e684fa46eaa184ae4546",
-    "lines": 333,
-    "loads": true,
-    "note": "episode 89674601 distillation == current champion 00e8ab59"
-  },
-  {
-    "file": "kaitofukami_v17_market_ranker.py",
-    "kernel_ref": "kaitofukami/29-30-current-holdout-v17-learned-market-ranker",
-    "extraction": "b85_zlib",
-    "sha256": "d81de06bcb1c32a319b6e08b2ec783875663d62f64cf44c922fa2853d82278cc",
-    "lines": 3413,
-    "loads": true,
-    "note": "learned market ranker v17 (distinct architecture)"
-  },
-  {
-    "file": "pilkwang_economic_control.py",
-    "kernel_ref": "pilkwang/kaggriculture-observable-economic-control",
-    "extraction": "agentfile",
-    "sha256": "505d0681844477d3f9e2655556f880b5b9be1b6c84488650385a9a93f5e15118",
-    "lines": 2175,
-    "loads": true,
-    "note": "observable economic control policy bundle"
-  },
-  {
-    "file": "roman_hamburger_anchor.py",
-    "kernel_ref": "romantamrazov/kaggriculture-hamburger",
-    "extraction": "anchor_blob",
-    "sha256": "c3be7447f79a1c4e0a9fa537b9fbd2eb7ae1a199a09690e7dfdc15da1cb0b5a4",
-    "lines": 167,
-    "loads": true,
-    "note": "Anchor Soil V5 (episode 89674601 lineage, 167-line anchor)"
-  }
-]
+{
+  "pulled_at": "2026-09-03T03:22:05+00:00",
+  "competition": "kaggriculture",
+  "sort": "voteCount",
+  "agents": [
+    {
+      "file": "v16_rc5_high_score_8c_4s_premium_market_lead.py",
+      "kernel_ref": "boatlee/v16-rc5-high-score-8c-4s-premium-market-lead",
+      "author": "boatlee",
+      "votes": 306,
+      "kernel_last_run": "2026-08-12 10:25:26",
+      "sha256": "f029fa0cb66a9eb509afbe44e3f59b800332d0419db91607183410e4089c4d19",
+      "lines": 247,
+      "author_lb_rating_at_pull": 2515.4
+    },
+    {
+      "file": "kaggriculture_findings_from_zero_to_top_meta.py",
+      "kernel_ref": "raykkretzschmar/kaggriculture-findings-from-zero-to-top-meta",
+      "author": "raykkretzschmar",
+      "votes": 185,
+      "kernel_last_run": "2026-08-11 14:13:28",
+      "sha256": "7b13e69371509fe53f1dbb7b769d73f6c82ff41db37df7a9a3a1879e82ed82f2",
+      "lines": 914,
+      "author_lb_rating_at_pull": 1927.5
+    },
+    {
+      "file": "25_27_strict_future_v27_midgame_meta_reset.py",
+      "kernel_ref": "kaitofukami/25-27-strict-future-v27-midgame-meta-reset",
+      "author": "kaitofukami",
+      "votes": 184,
+      "kernel_last_run": "2026-08-10 02:07:31",
+      "sha256": "f48c21166eac68d1b05a401f04f94a2eb6154e65415af64893672365ff33c7b8",
+      "lines": 416,
+      "author_lb_rating_at_pull": 2279.1
+    },
+    {
+      "file": "40_40_early_floor_39_46_top_10_v48_fast_routes.py",
+      "kernel_ref": "kaitofukami/40-40-early-floor-39-46-top-10-v48-fast-routes",
+      "author": "kaitofukami",
+      "votes": 128,
+      "kernel_last_run": "2026-08-24 22:55:42",
+      "sha256": "dadee25a9840313218384208c53b2c4752f82c3209cc654632e0b96c65e2664a",
+      "lines": 1222,
+      "author_lb_rating_at_pull": 2279.1
+    },
+    {
+      "file": "177_180_fresh_top_30_v21_1_conditional_memory.py",
+      "kernel_ref": "kaitofukami/177-180-fresh-top-30-v21-1-conditional-memory",
+      "author": "kaitofukami",
+      "votes": 100,
+      "kernel_last_run": "2026-08-06 04:28:18",
+      "sha256": "d9dc24ce5429ec628ead0621a160bee90725350683d7dfcc4686fcaf511f3aab",
+      "lines": 5060,
+      "author_lb_rating_at_pull": 2279.1
+    },
+    {
+      "file": "kaggriculture_structured_economic_policy.py",
+      "kernel_ref": "pilkwang/kaggriculture-structured-economic-policy",
+      "author": "pilkwang",
+      "votes": 98,
+      "kernel_last_run": "2026-09-03 02:13:50",
+      "sha256": "17c45f1cc1966161631f4a9de6ddb987825ec24b3eef25ff065f837fa142a3a8",
+      "lines": 3886,
+      "author_lb_rating_at_pull": 2268.1
+    },
+    {
+      "file": "kaggriculture_visualized_what_every_crop_pays.py",
+      "kernel_ref": "georgymamarin/kaggriculture-visualized-what-every-crop-pays",
+      "author": "georgymamarin",
+      "votes": 88,
+      "kernel_last_run": "2026-08-17 05:15:30",
+      "sha256": "8df88e304782741d251af9a691c6cb217bd651d1475a23b3fda7a9b638c41cef",
+      "lines": 83,
+      "author_lb_rating_at_pull": 2763.8
+    },
+    {
+      "file": "kaggriculture_multi_route_farming_agent.py",
+      "kernel_ref": "flexonafft/kaggriculture-multi-route-farming-agent",
+      "author": "flexonafft",
+      "votes": 87,
+      "kernel_last_run": "2026-08-20 14:24:15",
+      "sha256": "8ac34abce129cf5c9456776c90edf7d2233b3a280bbdcf7622628825ef3669a0",
+      "lines": 1013,
+      "author_lb_rating_at_pull": 2178.1
+    },
+    {
+      "file": "v16_rc2_high_score_near_mirror_market_relay.py",
+      "kernel_ref": "boatlee/v16-rc2-high-score-near-mirror-market-relay",
+      "author": "boatlee",
+      "votes": 79,
+      "kernel_last_run": "2026-08-10 11:33:49",
+      "sha256": "3c9b6e75d1bb9cc1f23b6bf5d8821c84193d1306d5bcb74ada1628359e3fb025",
+      "lines": 678,
+      "author_lb_rating_at_pull": 2515.4
+    }
+  ]
+}
