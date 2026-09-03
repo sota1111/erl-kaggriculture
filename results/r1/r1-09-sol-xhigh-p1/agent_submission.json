@@ -1,0 +1,36 @@
+{
+  "approach_summary": "白紙から構築したルールベース制御。day 0-7 は少量の CARROT を高速回転させて運転資金を作り、資金を残しつつ NE/SW/SE を順次解放する。その後は共有市場の現在価格、町の店別需要、残り日数、種代、収量/占有日数から作付け価値を計算する。市場価格が崩れやすいため単作にせず、上限を WHEAT 10 / CARROT 15 / TOMATO 15 / STRAWBERRY 60 / MELON 15 とし、将来の店需要を弱い係数で先読みする。期待需要が高い STRAWBERRY を主軸にしながら4作物へ分散し、収穫物は継続販売して土地・種・日次雇用へ再投資する。作業者は解放済みマスの serpentine 順を連続区画に分割して担当し、移動先の振動を防ぐ。初期/50マスでは8 hands、75マスでは10 hands、100マスでは10 handsを日次雇用する。植え付け当日は必ず水やりし、one-time 作物は増収窓だけ毎日、それ以前と無肥料 ongoing 作物は consecutive_unwatered を見て隔日水やりする。成熟日の WATER→HARVEST は同じマスで連続実行し、decay 前に回収する。土地は次価格に加え500の運転資金を残せる時点で解放する。家畜・肥料は複数seed/自己対戦で総収益を下げたため最終個体では使わない。経済的根拠は、安い Fibonacci 初段の雇用、STRAWBERRY の高い基礎単価とランダム8店中4店の需要、共有市場での単作過剰供給回避、増収しない期間の灌水労働削減である。",
+  "derived_from": "白紙から実装。baseline/moon198 および公開解のコードには依拠していない。提供された公式仕様、ローカルの組み込み相手、自己対戦だけを用いた。",
+  "local_eval": {
+    "command": ".venv/bin/python tools/eval_local.py main.py --seeds 12 --workers 8",
+    "starter": "bank平均 77,739 / 最小 49,660 / 勝ち 24/24",
+    "random": "bank平均 81,988 / 最小 63,172 / 勝ち 24/24",
+    "self_play": "bank平均 44,862 / 最小 8,207 / 勝ち 7/24",
+    "reference": "77,739 = 52% of 150,000 reference; 基準線未達のためローカル評価から昇格やLB実力は主張しない",
+    "bankruptcy_check": "PASS; starter/random の全24試合で勝利、zero-bankなし"
+  },
+  "failure_modes": [
+    "初版の全体greedy割当ては毎ターン担当先が入れ替わって移動が振動し、購入済み種が残った。解放済みserpentine列を連続区画に分ける固定担当へ変更した。",
+    "成熟日も全マスを水やりしてから二巡目で収穫すると、遠方作物がturn単位decayでWEED化した。水やり済み成熟作物は現在マスで直ちにHARVESTするようにした。",
+    "長期作物を買い過ぎて日次handsを雇えず不可逆な雑草化が発生した。種・土地購入の運転資金留保と、増収窓外の隔日灌水で解消した。",
+    "肥料搬送の初版はPICKUP直後にDROPしてno-op同然だった。搬送は修正したが複数seed平均がなお低かったため最終設定で無効化した。",
+    "観測欠落、型違い、短いtiles、内部の想定外値は agent 全体の try/except で捕捉し、常に farmer PASS / hands [] / market [] を返す。市場注文は明示的に10件で切る。"
+  ],
+  "timing": {
+    "measurement": "12 seeds x both seats vs starter, 24 DONE episodes, 17,256 agent calls",
+    "worst_turn_ms": 67.190,
+    "mean_turn_ms": 1.497,
+    "mean_720_turn_agent_time_s": 1.076,
+    "aggregate_agent_time_s": 25.827,
+    "eval_local_worst_episode_wall_s": 4.09,
+    "limit": "worst observed agent turn is below the 1 second limit; policy performs bounded O(units*tiles) scans and no search"
+  },
+  "rejected_hypotheses": [
+    "家畜中心: goose/cow/sheepを3-30頭で試した。建設・搬入・給餌・CARE・回収が作物管理を圧迫し、成熟待ちと飼料費も重く、starter戦と自己対戦の双方で作物専業を下回った。",
+    "肥料購入: tomatoは最大+3、strawberryは1回+2の追加収量があるが、購入資金・PICKUP/FERTILIZE移動・共有倉庫占有まで含めた12 seed平均で無肥料を上回らなかった。",
+    "強い希少性待ち: 市場在庫10,000の不足分だけ売り、倉庫容量まで保持する方式は価格を守ったが、土地解放と再作付けの資金を遅らせて即時販売より低収益だった。",
+    "単作: wheat/carrot/tomato/strawberry/melon単作を比較したが、共有市場の価格床と長い初回成熟により不安定かつ低収益だった。",
+    "STRAWBERRY 80%: starter戦12 seed片席平均は約80k、最大約102kだったが最小約33k、自己対戦平均約38kまで崩れた。60%案は最終の両席starter評価で平均77,739・最小49,660となり、下側の安定性を優先して採用した。",
+    "店出現後だけstrawberry枠を増やす: 長い成熟時間のため需要判明後では遅く、12 seed平均が固定60%より低下した。"
+  ]
+}
