@@ -25,9 +25,30 @@ def backend() -> str:
     return _BACKEND
 
 
+class SimulationDisabled(RuntimeError):
+    """Episodes are switched off for this worktree."""
+
+
+def _sim_blocked() -> bool:
+    """マシンが混んでいるとき、Controller はエピソード実行だけを止められる。
+    禁止は依頼ではなく機構で行う——依頼は守られないことがある。"""
+    import os
+    from pathlib import Path as _P
+    if os.environ.get("KAGGRICULTURE_NO_SIM"):
+        return True
+    here = _P.cwd()
+    return any((d / ".no_simulation").exists() for d in (here, *here.parents))
+
+
 def play(agent_a, agent_b, seed: int):
     """Run one 720-turn episode between two callables. Returns (bank_a, bank_b)."""
     global _BACKEND
+    if _sim_blocked():
+        raise SimulationDisabled(
+            "このワークツリーではエピソード実行が無効化されている(.no_simulation)。"
+            "マシンが他の作業で飽和しているため、Controller が停止した。"
+            "実装・静的検証・設計の記録までを進めること。"
+            "eval_local.py による採点は後で Controller が行う。")
     if _BACKEND != "kaggle_environments":
         try:
             kagsim = _selfcheck_kagsim()

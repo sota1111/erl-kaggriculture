@@ -49,9 +49,9 @@ ALLOW_FILES = ["AGENTS.md", "requirements.txt",
                "tools/validate_submission.py", "tools/build_submission.sh"]
 
 
-def build_worktree(run_id: str, arm: str) -> Path:
+def build_worktree(run_id: str, arm: str, resume: bool = False, no_sim: bool = False) -> Path:
     work = RUNS / run_id
-    if work.exists():
+    if work.exists() and not resume:
         shutil.rmtree(work)
     for rel in ALLOW_FILES:
         src = REPO / rel
@@ -61,6 +61,31 @@ def build_worktree(run_id: str, arm: str) -> Path:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
     shutil.copy2(REPO / "prompts" / "v1" / f"{arm}.md", work / "PROMPT.md")
+    if no_sim:
+        (work / ".no_simulation").write_text(
+            "Controller がエピソード実行を停止している。engine.play は例外を投げる。\n")
+        with (work / "PROMPT.md").open("a") as fh:
+            fh.write("""
+## 重要:このワークツリーではエピソードを実行できない
+
+マシンが他の作業で飽和しているため、**Controller がシミュレーションを停止している。**
+`tools/eval_local.py` と `tools/engine.py` の `play()` は例外を投げる。回避を試みないこと
+(自前でエピソードを回す実装を書くのも同じく禁止)。
+
+**この状態で進めること:**
+
+- `main.py` を実装する。`agent(obs)` を export し、契約を満たすこと
+- `.venv/bin/python tools/validate_submission.py main.py` は**動く**(1ターンぶんの
+  スタブ観測で契約を検査するだけで、エピソードは回さない)。これは必ず通すこと
+- `docs/env/RULES.md` と env のソースから、**測定なしで決められる設計判断**を進める
+- **測定が必要な判断は、`agent_submission.json` の `rejected_hypotheses` ではなく
+  `open_questions` に、何をどう測れば決まるかと併せて書く。**
+  測っていないことを測ったように書いてはならない
+- `code/` に測定スクリプトを置いておくのは有用。Controller が後で回す
+
+採点は Controller が実施する。**あなたの終了条件は「契約を満たす `main.py` と、
+測定待ちの問いを明記した `agent_submission.json`」である。**
+""")
     # 実行環境。ワークツリーに venv を複製するのは重いので共有 venv へのシンボリックリンク。
     venv = Path(os.environ.get("KAGGRICULTURE_VENV", "/home/vscode/.venvs/kaggriculture"))
     if not (venv / "bin" / "python").exists():
@@ -99,6 +124,9 @@ def main():
     ap.add_argument("run_id")
     ap.add_argument("--cli"); ap.add_argument("--model")
     ap.add_argument("--arm", choices=("p1", "p3")); ap.add_argument("--reasoning-effort")
+    ap.add_argument("--resume", action="store_true", help="既存ワークツリーの成果物を残す")
+    ap.add_argument("--no-simulation", action="store_true",
+                    help="エピソード実行を機構的に禁止する(マシンが混んでいるとき)")
     args = ap.parse_args()
 
     cfg = dict(REGISTRY.get(args.run_id, {}))
@@ -109,7 +137,7 @@ def main():
     if not {"cli", "model", "arm"} <= cfg.keys():
         raise SystemExit(f"unknown run-id {args.run_id!r}: give --cli/--model/--arm")
 
-    work = build_worktree(args.run_id, cfg["arm"])
+    work = build_worktree(args.run_id, cfg["arm"], resume=args.resume, no_sim=args.no_simulation)
     out = RUNS / f"{args.run_id}.jsonl"
     meta = {"run_id": args.run_id, "config": cfg,
             "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -124,7 +152,8 @@ def main():
         proc = subprocess.Popen(command(cfg, work), stdout=fh, stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL,  # CLI が stdin を3秒待つのを避ける
                                 cwd=str(work), start_new_session=True,
-                                env={**os.environ, "KAGGLE_USERNAME": "", "KAGGLE_API_TOKEN": ""})
+                                env={**os.environ, "KAGGLE_USERNAME": "", "KAGGLE_API_TOKEN": "",
+                                     **({"KAGGRICULTURE_NO_SIM": "1"} if args.no_simulation else {})})
         rc = proc.wait()
     meta.update(returncode=rc, elapsed_sec=round(time.time() - t, 1),
                 finished_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
