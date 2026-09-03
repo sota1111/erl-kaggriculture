@@ -13,10 +13,33 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 PY = str(REPO / ".venv" / "bin" / "python") if (REPO / ".venv/bin/python").exists() else sys.executable
 
-# 公開解を取りに行った痕跡。プールのファイル名・カーネル作者・取得コマンド。
-AUDIT = re.compile(r"kaggle kernels|kaggle competitions (kernels|replay|episodes)|"
-                   r"opponents/|prvsiyan|kaitofukami|pilkwang|boatlee|flexonafft|"
-                   r"raykkretzschmar|georgymamarin|salemali", re.I)
+# 公開解を取りに行った痕跡。**エージェントが実行したコマンドだけ**を見る。
+# transcript にはコマンドの出力も入っており、こちらが渡した docs/competition_brief.md
+# には `kaggle competitions episodes ...` の例が載っている——正本を読んだだけで発火する
+# 監査は使いものにならない(実際 r1-15 で2件の偽陽性を出した)。
+AUDIT = re.compile(r"kaggle\s+kernels|kaggle\s+competitions\s+(kernels|replay|episodes|leaderboard)|"
+                   r"\bopponents/|\bbaseline/|curl|wget|pip\s+download|git\s+clone|"
+                   r"prvsiyan|kaitofukami|pilkwang|boatlee|flexonafft|raykkretzschmar|"
+                   r"georgymamarin|salemali|nikital7|destbreso", re.I)
+
+
+def audit_commands(transcript: Path) -> list[str]:
+    """エージェントが発行したコマンドのみを走査する。読んだ内容ではなく、やったこと。"""
+    hits = []
+    for line in transcript.read_text(errors="replace").splitlines():
+        if not line.startswith("{"):
+            continue
+        try:
+            d = json.loads(line)
+        except Exception:
+            continue
+        item = d.get("item") or {}
+        if item.get("type") != "command_execution":
+            continue
+        cmd = item.get("command") or ""
+        if AUDIT.search(cmd):
+            hits.append(cmd[:200])
+    return sorted(set(hits))
 
 
 def main():
@@ -47,8 +70,7 @@ def main():
     subprocess.run([PY, str(REPO / "tools/validate_submission.py"), str(dest / "main.py")], check=False)
 
     print("== 事後監査 ==")
-    hits = [l[:160] for l in (dest / "transcript.jsonl").read_text(errors="replace").splitlines()
-            if AUDIT.search(l)] if (dest / "transcript.jsonl").exists() else []
+    hits = audit_commands(dest / "transcript.jsonl") if (dest / "transcript.jsonl").exists() else []
     print(f"  {len(hits)} 件ヒット" + ("(人間が確認すること)" if hits else " — クリーン"))
     for h in hits[:5]:
         print("   ", h)

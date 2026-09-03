@@ -1,0 +1,84 @@
+{
+  "seeds": [
+    1001,
+    1002,
+    1003,
+    1004,
+    1005,
+    1006,
+    1007,
+    1008,
+    1009,
+    1010,
+    1011,
+    1012
+  ],
+  "pool": [
+    "177_180_fresh_top_30_v21_1_conditional_memory.py",
+    "25_27_strict_future_v27_midgame_meta_reset.py",
+    "40_40_early_floor_39_46_top_10_v48_fast_routes.py",
+    "kaggriculture_findings_from_zero_to_top_meta.py",
+    "kaggriculture_multi_route_farming_agent.py",
+    "kaggriculture_structured_economic_policy.py",
+    "kaggriculture_visualized_what_every_crop_pays.py",
+    "v16_rc2_high_score_near_mirror_market_relay.py",
+    "v16_rc5_high_score_8c_4s_premium_market_lead.py"
+  ],
+  "subjects": {
+    "main.py": {
+      "win_rate": 0.1111111111111111,
+      "games": 216,
+      "margin_mean": -115401.17592592593,
+      "margin_min": -163337.0,
+      "zero_bank_games": 0,
+      "bank_vs_starter_mean": 22840.333333333332,
+      "per_opponent": {
+        "177_180_fresh_top_30_v21_1_conditional_memory.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -127895.25
+        },
+        "25_27_strict_future_v27_midgame_meta_reset.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -138509.66666666666
+        },
+        "40_40_early_floor_39_46_top_10_v48_fast_routes.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -126707.625
+        },
+        "kaggriculture_findings_from_zero_to_top_meta.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -126301.20833333333
+        },
+        "kaggriculture_multi_route_farming_agent.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -127720.70833333333
+        },
+        "kaggriculture_structured_economic_policy.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -132346.91666666666
+        },
+        "kaggriculture_visualized_what_every_crop_pays.py": {
+          "wins": 24,
+          "games": 24,
+          "margin_mean": 17469.791666666668
+        },
+        "v16_rc2_high_score_near_mirror_market_relay.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -139524.16666666666
+        },
+        "v16_rc5_high_score_8c_4s_premium_market_lead.py": {
+          "wins": 0,
+          "games": 24,
+          "margin_mean": -137074.83333333334
+        }
+      }
+    }
+  }
+}
