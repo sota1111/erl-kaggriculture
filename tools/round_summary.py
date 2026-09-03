@@ -31,6 +31,9 @@ def main():
     if not rows:
         raise SystemExit(f"results/{args.round}/*/summary.json がない")
 
+
+    unscored = [r for r in rows if r["bank"] is None]
+    rows = [r for r in rows if r["bank"] is not None]
     rows.sort(key=lambda r: -(r["margin"] or -9e18))
     pools = {r["pool"] for r in rows}
     lines = [f"| run | model | effort | arm | 所要 | starter戦 bank | 基準線比 | マージン | 監査 |",
@@ -61,6 +64,11 @@ def main():
         lines += ["", f"> **アーム内のばらつき(bank)最大 {worst:,.0f} 対 アーム間の差 {gap:,.0f}。**"
                       + ("ばらつきが差と同程度以上であり、**軸の効果を語ってはならない。**"
                          if worst >= gap * 0.5 else "")]
+
+    if unscored:
+        lines += ["", "**未採点(エピソード未実行):**"] + [
+            f"- `{r['run']}` — {r['model']} / {r['effort']} / {r['arm'].upper()} / {r['sec']:.0f}s"
+            for r in unscored]
 
     out = "\n".join(lines)
     print(out)
