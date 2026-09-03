@@ -6,7 +6,7 @@
 | 所要 | **256.8 秒**、rc=0 |
 | 成果物 | `main.py`(7,056バイト)、`agent_submission.json`(必須キー全て)、`local_eval.json` |
 | 契約チェック | PASS |
-| 事後監査 | **クリーン。**`kaggle kernels` の実行なし、相手プール・公開解への参照なし。transcript 中の唯一の kaggle.com/code URL は、こちらが渡した `docs/competition_brief.md` の引用 |
+| 事後監査 | **ヒット3件、すべて偽陽性。**`tools/collect_run.py` の広い正規表現が、エージェントの `rg --files -g 'baseline/**' -g 'opponents/**'` に反応した——当時の `AGENTS.md` がそれらを参照していたため**存在を確認しに行った**もので、ディレクトリ自体が無く何も読めていない。`kaggle kernels` の実行なし。transcript 中の唯一の kaggle.com/code URL は、こちらが渡した `docs/competition_brief.md` の引用。**v0.4.6 で採点ツール自身のソースを読んだことによる偽陽性が3件出たのと同型** |
 
 ## 現在の公開プールに対する採点(216戦、両席、seed 1001-1012)
 

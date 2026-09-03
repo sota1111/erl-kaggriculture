@@ -6,3 +6,4 @@ submission.tar.gz
 replays/
 opponents/__pycache__/
 .runs/
+.venv

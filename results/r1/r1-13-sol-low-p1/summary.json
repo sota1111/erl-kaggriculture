@@ -1,0 +1,16 @@
+{
+  "run_id": "r1-13-sol-low-p1",
+  "config": {
+    "cli": "codex",
+    "model": "gpt-5.6-sol",
+    "arm": "p1",
+    "reasoning_effort": "low"
+  },
+  "elapsed_sec": 256.8,
+  "returncode": 0,
+  "win_rate": 0.1111111111111111,
+  "margin_mean": -117193.13888888889,
+  "bank_vs_starter_mean": 14783.75,
+  "audit_hits": 3,
+  "pool_pulled_at": "2026-09-03T03:22:05+00:00"
+}
