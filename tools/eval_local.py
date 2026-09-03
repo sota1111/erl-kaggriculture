@@ -14,6 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+# 現在の公開フィールドで戦えている個体が、この同じ測定(starter 戦、両席、seed 1..12)で
+# 到達する所持金の水準。2026-09-03 に実測した値であり、相手の戦略やコードは一切含まない
+# ただのスカラーである。これが無いと、エージェントは「starter に勝った」だけを見て
+# 桁で足りていないことに気づけない——実際に最初の1体がそうなった。
+REFERENCE_BANK = 150_000
+
 
 def _one(task):
     import engine
@@ -30,7 +36,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("candidate")
     ap.add_argument("--seeds", type=int, default=12)
-    ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--workers", type=int, default=8)
     args = ap.parse_args()
 
     cand = str(Path(args.candidate).resolve())
@@ -53,6 +59,14 @@ def main():
               + (f"   ZERO-BANK {zero}" if zero else ""))
         if opp != cand and (zero or wins < len(sel)):
             ok = False
+    starter_banks = [r[3] for r in rows if r[0] == "starter"]
+    mean_bank = statistics.mean(starter_banks)
+    print(f"\n  基準線: 現在の公開フィールドで戦えている個体は、この同じ測定で "
+          f"**bank 平均 150,000 前後**に達する。")
+    print(f"  あなた: {mean_bank:,.0f}  ({mean_bank/REFERENCE_BANK*100:.0f}% of 基準線)"
+          + ("   → 基準線に届いている" if mean_bank >= 0.8 * REFERENCE_BANK
+             else f"   → **{REFERENCE_BANK/max(mean_bank,1):.0f} 倍足りない。設計を見直すこと。**"))
+
     worst = max(r[5] for r in rows)
     print(f"\n  1エピソードの最悪実行時間 {worst:.2f}s (720ターン)  "
           f"→ 1ターンあたり約 {worst/720*1000:.1f}ms")
