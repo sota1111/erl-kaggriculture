@@ -15,8 +15,12 @@
 | --- | --- | --- |
 | 内蔵 `starter` | 42 | moon-198 **133,032** 対 starter 3,532 |
 
-field win-rate は `results/baseline/moon198_league.json`(公開上位5体プール、12 seed × 両席)。
-**この値は強さの順序を表さない** — `tools/README.md` を読むこと。
+公開上位5体プールに対する field win-rate は **39/120 = 32.5%**(12 seed × 両席、
+`results/baseline/moon198_league.json`、全 120 戦 `DONE`、ALL-WIN / ALL-LOSE の相手はゼロ)。
+
+> **ローカルでは平均以下に見えるこの個体が、実 LB では 2543.4(銀圏)だった。**
+> この一行が、本リポジトリでローカル評価を昇格判定に使わない理由そのものである。
+> 再提出後の収束は `results/baseline/rating_convergence.md`。
 
 ## 既知の性質(`kaggriculture-claude` の測定より)
 

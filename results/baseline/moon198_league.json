@@ -1,0 +1,93 @@
+{
+  "candidate": "main.py",
+  "candidate_sha256": "7c5a4a2a3ba51cc4dc00657614f28a0afa8ee275ce6cdd8e7cb6c2ac2b54840d",
+  "seeds": [
+    101,
+    202,
+    7,
+    42,
+    303,
+    404,
+    505,
+    777,
+    1234,
+    2026,
+    5555,
+    9001
+  ],
+  "per_opponent": [
+    {
+      "opponent": "kaitofukami_v17_market_ranker.py",
+      "label": "kaitofukami_v17_market_ranker.py",
+      "games": 24,
+      "wins": 3,
+      "win_rate": 0.125,
+      "diff_min": -6234.0,
+      "diff_mean": -2425.0,
+      "cand_min_money": 26679.0,
+      "cand_mean_money": 77567.20833333333,
+      "opp_mean_money": 79992.20833333333,
+      "sign": "MIXED",
+      "all_done": true
+    },
+    {
+      "opponent": "moon_counts_melons.py",
+      "label": "moon_counts_melons.py",
+      "games": 24,
+      "wins": 2,
+      "win_rate": 0.08333333333333333,
+      "diff_min": -4990.0,
+      "diff_mean": -2035.5416666666667,
+      "cand_min_money": 26711.0,
+      "cand_mean_money": 75775.25,
+      "opp_mean_money": 77810.79166666667,
+      "sign": "MIXED",
+      "all_done": true
+    },
+    {
+      "opponent": "pilkwang_economic_control.py",
+      "label": "pilkwang_economic_control.py",
+      "games": 24,
+      "wins": 22,
+      "win_rate": 0.9166666666666666,
+      "diff_min": -11728.0,
+      "diff_mean": 9745.041666666666,
+      "cand_min_money": 55201.0,
+      "cand_mean_money": 76660.25,
+      "opp_mean_money": 66915.20833333333,
+      "sign": "MIXED",
+      "all_done": true
+    },
+    {
+      "opponent": "roman_hamburger_anchor.py",
+      "label": "roman_hamburger_anchor.py",
+      "games": 24,
+      "wins": 9,
+      "win_rate": 0.375,
+      "diff_min": -2550.0,
+      "diff_mean": -9.5,
+      "cand_min_money": 36460.0,
+      "cand_mean_money": 78388.0,
+      "opp_mean_money": 78397.5,
+      "sign": "MIXED",
+      "all_done": true
+    },
+    {
+      "opponent": "soil_remembers_rain.py",
+      "label": "soil_remembers_rain.py",
+      "games": 24,
+      "wins": 3,
+      "win_rate": 0.125,
+      "diff_min": -4980.0,
+      "diff_mean": -2059.75,
+      "cand_min_money": 26927.0,
+      "cand_mean_money": 76047.25,
+      "opp_mean_money": 78107.0,
+      "sign": "MIXED",
+      "all_done": true
+    }
+  ],
+  "field_win_rate": 0.325,
+  "field_diff_min": -11728.0,
+  "field_diff_mean": 643.05
+}
