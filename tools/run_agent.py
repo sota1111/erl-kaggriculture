@@ -122,6 +122,7 @@ def main():
         # setsid: 親のプロセスグループに紐づけない。ハーネスがバックグラウンドジョブへ
         # SIGSTOP を送ってプロセス群ごと落とした事故が NEDO であった。
         proc = subprocess.Popen(command(cfg, work), stdout=fh, stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL,  # CLI が stdin を3秒待つのを避ける
                                 cwd=str(work), start_new_session=True,
                                 env={**os.environ, "KAGGLE_USERNAME": "", "KAGGLE_API_TOKEN": ""})
         rc = proc.wait()
